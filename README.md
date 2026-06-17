@@ -40,6 +40,10 @@ pyinstaller build.spec
 
 The output is placed in the `dist/` directory.
 
+## Spatial / immersive audio (Dolby)
+
+NetEase "spatial audio / 沉浸声" (Dolby) downloads are delivered as `.m4a` (an object-based spatial stream). The converter exports them **as-is** and flags them as a special format. They **cannot be converted to FLAC**: FLAC is plain PCM and cannot carry object-based spatial audio, so any conversion would downmix to stereo and lose the immersive effect. Some players also cannot play these `.m4a` files. If you need FLAC output, adding spatial-audio tracks is not recommended.
+
 ## Notes
 
 This tool is for converting music you have already downloaded / purchased yourself into a common format so you can play it in other players. For personal use only.
