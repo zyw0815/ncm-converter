@@ -40,7 +40,9 @@ pyinstaller build.spec
 
 The output is placed in the `dist/` directory.
 
-PyInstaller cannot cross-compile, so a macOS `.app` must be built on macOS and a Windows `.exe` on Windows. To build both automatically, push a `v*` tag (e.g. `v1.0.0`): GitHub Actions builds macOS and Windows packages and attaches them to the release. You can also trigger the workflow manually from the Actions tab.
+PyInstaller cannot cross-compile, so a macOS `.app` must be built on macOS and a Windows `.exe` on Windows. To build everything automatically, push a `v*` tag (e.g. `v1.0.0`): GitHub Actions builds three packages — macOS Apple Silicon (arm64), macOS Intel (x86_64), and Windows — and attaches them to the release. You can also trigger the workflow manually from the Actions tab.
+
+Note on macOS architecture: an arm64 build runs only on Apple Silicon; an Intel build runs on Intel Macs natively and on Apple Silicon via Rosetta.
 
 ## Metadata & cover art
 

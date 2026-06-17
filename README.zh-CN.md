@@ -40,7 +40,9 @@ pyinstaller build.spec
 
 产物在 `dist/` 目录。
 
-PyInstaller 无法跨平台编译，所以 macOS 的 `.app` 必须在 macOS 上构建、Windows 的 `.exe` 必须在 Windows 上构建。若要自动构建两个平台，推送一个 `v*` 标签（如 `v1.0.0`）：GitHub Actions 会在 macOS 与 Windows 上各自打包并挂到 Release。也可在 Actions 页面手动触发。
+PyInstaller 无法跨平台编译，所以 macOS 的 `.app` 必须在 macOS 上构建、Windows 的 `.exe` 必须在 Windows 上构建。若要自动构建，推送一个 `v*` 标签（如 `v1.0.0`）：GitHub Actions 会产出三个包——macOS Apple 芯片（arm64）、macOS Intel（x86_64）、Windows——并挂到 Release。也可在 Actions 页面手动触发。
+
+关于 macOS 架构：arm64 包只能在 Apple 芯片上运行；Intel 包在 Intel Mac 上原生运行，在 Apple 芯片上可通过 Rosetta 运行。
 
 ## 元数据与封面
 
