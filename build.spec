@@ -11,7 +11,9 @@ a = Analysis(
     hiddenimports=['PyQt6'],
     hookspath=[],
     runtime_hooks=[],
-    excludes=[],
+    # 本应用不使用 setuptools/pkg_resources；排除它们以避免 PyInstaller 自动
+    # 注入的 pkg_resources 运行时钩子在启动时因缺少 jaraco 而崩溃。
+    excludes=['pkg_resources', 'setuptools', 'pip'],
     cipher=block_cipher,
     noarchive=False,
 )
