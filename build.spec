@@ -1,7 +1,18 @@
 # build.spec — PyInstaller 打包配置
 # 在 macOS 上构建 .app，在 Windows 上构建 .exe：
 #   pyinstaller build.spec
+import sys
+
 block_cipher = None
+
+# 单一版本号来源：version.py
+_ver = {}
+with open("version.py", encoding="utf-8") as _f:
+    exec(_f.read(), _ver)
+APP_VERSION = _ver["__version__"]
+
+# 各平台图标
+_icon = "assets/icon.ico" if sys.platform.startswith("win") else "assets/icon.icns"
 
 a = Analysis(
     ['main.py'],
@@ -30,6 +41,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
+    icon=_icon,
 )
 
 coll = COLLECT(
@@ -46,4 +58,11 @@ app = BUNDLE(
     coll,
     name='NCM-Converter.app',
     bundle_identifier='com.ncmconverter.app',
+    icon='assets/icon.icns',
+    version=APP_VERSION,
+    info_plist={
+        'CFBundleShortVersionString': APP_VERSION,
+        'CFBundleVersion': APP_VERSION,
+        'NSHighResolutionCapable': True,
+    },
 )

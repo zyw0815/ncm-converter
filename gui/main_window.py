@@ -11,6 +11,11 @@ from gui.task_model import QueueModel, Row
 from gui.workers import ConvertWorker, PreviewWorker
 from gui import theme
 
+try:
+    from version import __version__ as APP_VERSION
+except Exception:
+    APP_VERSION = ""
+
 NCM_EXT = ".ncm"
 CONFLICT_MAP = {"重命名": "rename", "跳过": "skip", "覆盖": "overwrite"}
 
@@ -61,7 +66,7 @@ class DropArea(QFrame):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("NCM 转换器")
+        self.setWindowTitle(f"NCM 转换器 v{APP_VERSION}" if APP_VERSION else "NCM 转换器")
         self.resize(960, 660)
         self.pool = QThreadPool.globalInstance()
         self.model = QueueModel()
