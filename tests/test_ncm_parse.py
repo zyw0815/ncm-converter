@@ -13,6 +13,15 @@ def test_parse_roundtrip():
     assert result.audio == b"RAW-AUDIO-BYTES"
 
 
+def test_parse_skip_audio():
+    from tests.conftest import build_ncm
+    data = build_ncm(b"RAW", {"musicName": "t", "format": "flac"}, cover=b"IMG")
+    r = parse_ncm(data, decode_audio=False)
+    assert r.audio == b""
+    assert r.metadata["musicName"] == "t"   # metadata still parsed
+    assert r.cover == b"IMG"
+
+
 def test_parse_rejects_non_ncm():
     import pytest
     from core.ncm import NotNcmError
