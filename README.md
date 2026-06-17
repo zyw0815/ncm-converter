@@ -1,43 +1,47 @@
-# NCM 转换器
+**English** | [中文](README.zh-CN.md)
 
-把网易云音乐下载的 `.ncm` 文件转换为通用播放器可直接播放的音频，并完整保留标题、歌手、专辑、封面等信息。跨平台（macOS / Windows），简约图形界面。
+# NCM Converter
 
-## 特性
+Convert NetEase Cloud Music `.ncm` files into audio that any player can open, while fully preserving title, artist, album and cover art. Cross-platform (macOS / Windows) with a clean graphical interface.
 
-- **保留原始格式优先**：NCM 内部是 flac 就输出 flac，是 mp3 就输出 mp3，不重新编码、不改变音质。
-- **特殊格式安全处理**：全景声等非标准封装按真实格式原样导出并在界面标注，绝不强转或产出坏文件。
-- **批量转换**：拖拽文件或文件夹（自动递归扫描所有 `.ncm`），多线程并行。
-- **转换前预览**：列表直接显示识别到的标题 / 歌手 / 专辑 / 格式 / 封面。
-- **完整元数据**：标题、歌手、专辑、封面写回 flac / mp3。
-- **贴心选项**：自定义命名模板、保留源目录结构、输出冲突（跳过 / 覆盖 / 重命名）、可选转 WAV、可选转换后删除原文件（首次二次确认）、深 / 浅主题、失败重试、一键打开输出目录。
+## Features
 
-## 环境与安装
+- **Original format first**: if the NCM holds FLAC it outputs FLAC, if it holds MP3 it outputs MP3 — no re-encoding, no quality change.
+- **Safe handling of special formats**: non-standard containers (e.g. spatial audio) are exported as-is in their real format and flagged in the UI, never force-converted or turned into broken files.
+- **Batch conversion**: drag in files or folders (all `.ncm` are scanned recursively), processed in parallel.
+- **Preview before converting**: the list shows the detected title / artist / album / format / cover up front.
+- **Full metadata**: title, artist, album and cover written back into FLAC / MP3.
+- **Thoughtful options**: custom naming templates, preserve source folder structure, output conflict policy (skip / overwrite / rename), optional convert-to-WAV, optional delete-source-after-success (with a first-time confirmation), light / dark theme, retry failed items, one-click open output folder.
 
-需要 Python 3.9+。
+## Requirements & Installation
+
+Requires Python 3.9+.
 
 ```bash
 pip install -r requirements.txt
 ```
 
-可选：安装 [ffmpeg](https://ffmpeg.org/) 后才能使用「转 WAV」功能；不安装不影响其他功能。
+Optional: install [ffmpeg](https://ffmpeg.org/) to enable the "convert to WAV" feature; everything else works without it.
 
-## 运行
+## Run
 
 ```bash
 python main.py
 ```
 
-## 打包
+## Packaging
 
-使用 PyInstaller 分别在 macOS / Windows 上打包：
+Build with PyInstaller using the bundled spec (run on macOS for a `.app`, on Windows for an `.exe`):
 
 ```bash
-pip install pyinstaller
-pyinstaller --noconfirm --windowed --name "NCM转换器" main.py
+pip install -r requirements-dev.txt
+pyinstaller build.spec
 ```
 
-产物在 `dist/` 目录。
+The output is placed in the `dist/` directory.
 
-## 说明
+## Notes
 
-本工具用于把你自己已下载 / 已购买的音乐转换为通用格式，便于在其他播放器上播放，仅供个人使用。
+This tool is for converting music you have already downloaded / purchased yourself into a common format so you can play it in other players. For personal use only.
+
+**This software must not be used for any commercial purpose.**
