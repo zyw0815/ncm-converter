@@ -24,10 +24,18 @@ class ConvertWorker(QRunnable):
     def run(self):
         res = convert_file(self.src, self.out_dir, self.template, self.conflict)
         if res.status == "ok" and self.to_wav and not res.special:
+            original = res.output_path
             try:
-                wav = res.output_path.rsplit(".", 1)[0] + ".wav"
-                transcode(res.output_path, wav)
+                wav = original.rsplit(".", 1)[0] + ".wav"
+                transcode(original, wav)
                 res.output_path = wav
+                res.fmt = "wav"
+                # 转码成功后删掉中间的原始格式文件，只保留 wav
+                if os.path.abspath(wav) != os.path.abspath(original):
+                    try:
+                        os.remove(original)
+                    except OSError:
+                        pass
             except FfmpegNotFound:
                 res.reason = "未找到 ffmpeg，已保留原始格式"
             except Exception as e:

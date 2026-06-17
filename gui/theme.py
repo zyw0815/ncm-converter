@@ -45,8 +45,6 @@ QComboBox QAbstractItemView {
     selection-color: #ffffff; border: 1px solid #d3d9e6; outline: none;
 }
 QCheckBox { color: #2a3140; spacing: 6px; }
-QCheckBox::indicator { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #c2c9d6; background: #ffffff; }
-QCheckBox::indicator:checked { background: #3b82f6; border-color: #3b82f6; }
 
 QTableView {
     background: #ffffff; alternate-background-color: #f7f9fd; color: #1f2430;
@@ -113,8 +111,6 @@ QComboBox QAbstractItemView {
     selection-color: #ffffff; border: 1px solid #3a4153; outline: none;
 }
 QCheckBox { color: #d4d9e3; spacing: 6px; }
-QCheckBox::indicator { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #4a5269; background: #232734; }
-QCheckBox::indicator:checked { background: #4a86f0; border-color: #4a86f0; }
 
 QTableView {
     background: #20242f; alternate-background-color: #242936; color: #e7eaf0;
