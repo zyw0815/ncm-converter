@@ -38,3 +38,31 @@ class ConvertWorker(QRunnable):
             except OSError:
                 pass
         self.signals.finished.emit(self.index, res)
+
+
+from core.ncm import parse_ncm
+from core.metadata import extract_tags
+
+
+class PreviewSignals(QObject):
+    done = pyqtSignal(int, dict, str, bytes)  # row index, tags, fmt, cover
+
+
+class PreviewWorker(QRunnable):
+    """轻量解析：只读元数据/封面/声明格式，不解密音频，用于转换前预览。"""
+    def __init__(self, index, src):
+        super().__init__()
+        self.index = index
+        self.src = src
+        self.signals = PreviewSignals()
+
+    def run(self):
+        try:
+            with open(self.src, "rb") as f:
+                data = f.read()
+            content = parse_ncm(data, decode_audio=False)
+            tags = extract_tags(content.metadata)
+            fmt = content.metadata.get("format", "") or "?"
+            self.signals.done.emit(self.index, tags, fmt, content.cover or b"")
+        except Exception:
+            self.signals.done.emit(self.index, {"title": "", "artists": [], "album": ""}, "?", b"")

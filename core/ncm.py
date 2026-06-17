@@ -51,7 +51,7 @@ class NcmContent:
     audio: bytes  # 已解密的原始音频字节
 
 
-def parse_ncm(data: bytes) -> "NcmContent":
+def parse_ncm(data: bytes, decode_audio: bool = True) -> "NcmContent":
     if data[:8] != MAGIC:
         raise NotNcmError("文件头不是 CTENFDAM，非 NCM 文件")
     offset = 10  # 8 magic + 2 gap
@@ -81,5 +81,5 @@ def parse_ncm(data: bytes) -> "NcmContent":
     cover = data[offset:offset + img_len]
     offset += img_len
 
-    audio = xor_audio(rc4_key, data[offset:])
+    audio = xor_audio(rc4_key, data[offset:]) if decode_audio else b""
     return NcmContent(rc4_key=rc4_key, metadata=metadata, cover=cover, audio=audio)
