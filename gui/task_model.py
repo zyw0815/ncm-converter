@@ -2,7 +2,7 @@
 import os
 from dataclasses import dataclass, field
 from PyQt6.QtCore import QAbstractTableModel, Qt, QModelIndex
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QPixmap, QIcon
 
 HEADERS = ["标题", "歌手", "专辑", "格式", "状态"]
 STATUS_TEXT = {"pending": "待转", "running": "转换中", "ok": "完成", "skipped": "跳过", "failed": "失败"}
@@ -28,6 +28,7 @@ class Row:
     status: str = "pending"
     reason: str = ""
     cover: bytes = field(default=b"", repr=False)
+    icon: object = field(default=None, repr=False, compare=False)  # 缓存的封面 QIcon
 
 
 class QueueModel(QAbstractTableModel):
@@ -67,6 +68,12 @@ class QueueModel(QAbstractTableModel):
                 return STATUS_TEXT.get(r.status, r.status) + (f"：{r.reason}" if r.reason else "")
         if role == Qt.ItemDataRole.ForegroundRole and col == 4:
             return QColor(STATUS_COLOR.get(r.status, "#9aa0a6"))
+        if role == Qt.ItemDataRole.DecorationRole and col == 0 and r.cover:
+            if r.icon is None:
+                pix = QPixmap()
+                pix.loadFromData(r.cover)
+                r.icon = QIcon(pix) if not pix.isNull() else QIcon()
+            return r.icon
         return None
 
     def add_rows(self, rows):
@@ -77,6 +84,8 @@ class QueueModel(QAbstractTableModel):
 
     def update_row(self, i, **kw):
         row = self.rows[i]
+        if "cover" in kw:
+            row.icon = None  # 封面变了，丢弃旧缓存
         for k, v in kw.items():
             setattr(row, k, v)
         self.dataChanged.emit(self.index(i, 0), self.index(i, len(HEADERS) - 1))

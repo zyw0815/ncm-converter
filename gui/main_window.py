@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QTableView, QLineEdit, QComboBox, QCheckBox, QProgressBar, QFileDialog,
     QMessageBox, QHeaderView, QFrame, QAbstractItemView,
 )
-from PyQt6.QtCore import Qt, QThreadPool, QUrl, QTimer
+from PyQt6.QtCore import Qt, QThreadPool, QUrl, QTimer, QSize
 from PyQt6.QtGui import QDesktopServices
 from gui.task_model import QueueModel, Row
 from gui.workers import ConvertWorker, PreviewWorker
@@ -112,7 +112,8 @@ class MainWindow(QMainWindow):
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
         self.table.verticalHeader().setVisible(False)
-        self.table.verticalHeader().setDefaultSectionSize(34)
+        self.table.verticalHeader().setDefaultSectionSize(44)
+        self.table.setIconSize(QSize(34, 34))
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         hdr = self.table.horizontalHeader()
@@ -140,7 +141,6 @@ class MainWindow(QMainWindow):
         lbl_name.setObjectName("FieldLabel")
         namerow.addWidget(lbl_name)
         self.tmpl = QComboBox()
-        self.tmpl.setEditable(True)
         self.tmpl.setMinimumWidth(280)
         self.tmpl.addItems(["{歌手} - {标题}", "{标题}", "{专辑}/{标题}", "{歌手}/{专辑}/{标题}"])
         namerow.addWidget(self.tmpl, 1)
