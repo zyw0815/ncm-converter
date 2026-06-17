@@ -17,8 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            artifact: NCM-Converter-macos
+          - os: macos-14          # Apple Silicon (arm64)
+            artifact: NCM-Converter-macos-arm64
+          - os: macos-13          # Intel (x86_64)
+            artifact: NCM-Converter-macos-intel
           - os: windows-latest
             artifact: NCM-Converter-windows
     runs-on: ${{ matrix.os }}
