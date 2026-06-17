@@ -40,6 +40,8 @@ pyinstaller build.spec
 
 产物在 `dist/` 目录。
 
+PyInstaller 无法跨平台编译，所以 macOS 的 `.app` 必须在 macOS 上构建、Windows 的 `.exe` 必须在 Windows 上构建。若要自动构建两个平台，推送一个 `v*` 标签（如 `v1.0.0`）：GitHub Actions 会在 macOS 与 Windows 上各自打包并挂到 Release。也可在 Actions 页面手动触发。
+
 ## 元数据与封面
 
 在输出格式允许的前提下，尽量保留标题、歌手、专辑、封面：

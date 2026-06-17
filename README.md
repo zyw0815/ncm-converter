@@ -40,6 +40,8 @@ pyinstaller build.spec
 
 The output is placed in the `dist/` directory.
 
+PyInstaller cannot cross-compile, so a macOS `.app` must be built on macOS and a Windows `.exe` on Windows. To build both automatically, push a `v*` tag (e.g. `v1.0.0`): GitHub Actions builds macOS and Windows packages and attaches them to the release. You can also trigger the workflow manually from the Actions tab.
+
 ## Metadata & cover art
 
 Title, artist, album and cover are preserved where the output format allows:
