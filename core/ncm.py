@@ -34,3 +34,52 @@ def xor_audio(rc4_key: bytes, data: bytes) -> bytes:
         j = (i + 1) & 0xFF
         out[i] = data[i] ^ box[(box[j] + box[(box[j] + j) & 0xFF]) & 0xFF]
     return bytes(out)
+
+
+from dataclasses import dataclass
+
+
+class NotNcmError(ValueError):
+    pass
+
+
+@dataclass
+class NcmContent:
+    rc4_key: bytes
+    metadata: dict
+    cover: bytes
+    audio: bytes  # 已解密的原始音频字节
+
+
+def parse_ncm(data: bytes) -> "NcmContent":
+    if data[:8] != MAGIC:
+        raise NotNcmError("文件头不是 CTENFDAM，非 NCM 文件")
+    offset = 10  # 8 magic + 2 gap
+
+    key_len = struct.unpack("<I", data[offset:offset + 4])[0]
+    offset += 4
+    key_data = bytes(b ^ 0x64 for b in data[offset:offset + key_len])
+    offset += key_len
+    key_dec = _unpad(AES.new(CORE_KEY, AES.MODE_ECB).decrypt(key_data))
+    rc4_key = key_dec[17:]  # 去掉 'neteasecloudmusic'
+
+    meta_len = struct.unpack("<I", data[offset:offset + 4])[0]
+    offset += 4
+    if meta_len:
+        meta_raw = bytes(b ^ 0x63 for b in data[offset:offset + meta_len])
+        offset += meta_len
+        meta_b64 = base64.b64decode(meta_raw[22:])  # 去掉 "163 key(Don't modify):"
+        meta_dec = _unpad(AES.new(META_KEY, AES.MODE_ECB).decrypt(meta_b64))
+        metadata = json.loads(meta_dec[6:])  # 去掉 'music:'
+    else:
+        metadata = {}
+
+    offset += 4  # CRC32
+    offset += 5  # gap
+    img_len = struct.unpack("<I", data[offset:offset + 4])[0]
+    offset += 4
+    cover = data[offset:offset + img_len]
+    offset += img_len
+
+    audio = xor_audio(rc4_key, data[offset:])
+    return NcmContent(rc4_key=rc4_key, metadata=metadata, cover=cover, audio=audio)
