@@ -1,0 +1,54 @@
+# ===== 敏感内容 / Secrets =====
+# 任何凭据、密钥、本地私密配置都不进仓库
+.env
+.env.*
+*.key
+*.pem
+secrets.*
+credentials.*
+config.local.*
+
+# ===== 用户音乐数据 / 受版权内容 =====
+# NCM 源文件与解出的音频均为个人/受版权内容，不应推送到远端
+*.ncm
+*.flac
+*.wav
+*.mp3
+*.m4a
+*.ape
+tests/fixtures/audio/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# ===== 打包产物 / Build artifacts =====
+build/
+dist/
+*.spec.bak
+
+# ===== 编辑器 / IDE =====
+.idea/
+.vscode/
+
+# ===== 操作系统 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== AI 工具相关（这些文件本身不得进入仓库/云端）=====
+# 在 .gitignore 中列出它们，从源头挡住，不让其被提交
+.claude/
+CLAUDE.md
+**/superpowers/
+.cursor/
+.aider*
+.github/copilot*
