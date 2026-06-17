@@ -40,6 +40,14 @@ pyinstaller build.spec
 
 The output is placed in the `dist/` directory.
 
+## Metadata & cover art
+
+Title, artist, album and cover are preserved where the output format allows:
+
+- **FLAC / MP3**: title, artist, album and cover art are fully written back.
+- **WAV**: the WAV format does not support embedded cover art or tags, so converting to WAV loses this information. If you need full metadata and cover, keep the original FLAC instead of converting to WAV.
+- **m4a (spatial / immersive audio)**: exported as-is as a special format; tags and cover are not re-written.
+
 ## Spatial / immersive audio (Dolby)
 
 NetEase "spatial audio / 沉浸声" (Dolby) downloads are delivered as `.m4a` (an object-based spatial stream). The converter exports them **as-is** and flags them as a special format. They **cannot be converted to FLAC**: FLAC is plain PCM and cannot carry object-based spatial audio, so any conversion would downmix to stereo and lose the immersive effect. Some players also cannot play these `.m4a` files. If you need FLAC output, adding spatial-audio tracks is not recommended.
