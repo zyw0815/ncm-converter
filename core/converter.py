@@ -24,25 +24,31 @@ class ConvertResult:
     cover: bytes = field(default=b"", repr=False)
 
 
-def _maybe_embed_lyrics(src: str, out_path: str, fmt: str, res: "ConvertResult") -> None:
-    """若启用嵌入歌词：找到同名 .lrc 则写入输出文件（内嵌标签 + 输出旁的外挂 .lrc），并在状态里注明。"""
+def _maybe_embed_lyrics(src: str, out_path: str, fmt: str, res: "ConvertResult",
+                        mode: str = "sidecar") -> None:
+    """启用嵌入歌词：找到同名 .lrc 后，按 mode 处理并在状态里注明。
+    mode='sidecar' 在输出旁生成同名 .lrc（外挂，兼容性好）；mode='embed' 写进音频标签（内嵌）。"""
     lyrics = read_lyrics(src)
     if not lyrics:
         res.reason = (res.reason + "；未找到歌词").lstrip("；") if res.reason else "未找到歌词"
         return
     try:
-        write_lyrics(out_path, fmt, lyrics)            # 内嵌到标签
-        sidecar = os.path.splitext(out_path)[0] + ".lrc"  # 输出旁的外挂 .lrc
-        with open(sidecar, "w", encoding="utf-8") as f:
-            f.write(lyrics)
-        res.reason = (res.reason + "；已嵌入歌词").lstrip("；") if res.reason else "已嵌入歌词"
+        if mode == "embed":
+            write_lyrics(out_path, fmt, lyrics)
+            note = "已嵌入歌词"
+        else:
+            sidecar = os.path.splitext(out_path)[0] + ".lrc"
+            with open(sidecar, "w", encoding="utf-8") as f:
+                f.write(lyrics)
+            note = "已生成歌词文件"
+        res.reason = (res.reason + "；" + note).lstrip("；") if res.reason else note
     except Exception as e:
         res.status = "partial"
         res.reason = (res.reason + f"；歌词写入失败：{e}").lstrip("；") if res.reason else f"歌词写入失败：{e}"
 
 
 def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str,
-                     embed_lyrics: bool = False) -> ConvertResult:
+                     embed_lyrics: bool = False, lyrics_mode: str = "sidecar") -> ConvertResult:
     """已是 mp3：不转码，按命名模板原样复制到输出目录（移动与否由上层 delete_src 决定）。"""
     res = ConvertResult(source=src, fmt="mp3", passthrough=True)
     tags, cover = read_audio_tags(src)
@@ -67,7 +73,7 @@ def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str,
         res.output_path = final
         res.reason = "MP3 原样导出（未转换）"
         if embed_lyrics:
-            _maybe_embed_lyrics(src, final, "mp3", res)
+            _maybe_embed_lyrics(src, final, "mp3", res, lyrics_mode)
         return res
 
     try:
@@ -80,14 +86,15 @@ def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str,
     res.output_path = final
     res.reason = "MP3 原样导出（未转换）"
     if embed_lyrics:
-        _maybe_embed_lyrics(src, final, "mp3", res)
+        _maybe_embed_lyrics(src, final, "mp3", res, lyrics_mode)
     return res
 
 
 def convert_file(src: str, out_dir: str, template: str, conflict: str,
-                 write_tags: bool = True, embed_lyrics: bool = False) -> ConvertResult:
+                 write_tags: bool = True, embed_lyrics: bool = False,
+                 lyrics_mode: str = "sidecar") -> ConvertResult:
     if src.lower().endswith(".mp3"):
-        return _passthrough_mp3(src, out_dir, template, conflict, embed_lyrics)
+        return _passthrough_mp3(src, out_dir, template, conflict, embed_lyrics, lyrics_mode)
     res = ConvertResult(source=src)
     try:
         with open(src, "rb") as f:
@@ -150,7 +157,7 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
             res.reason = f"标签写入失败：{e}"
 
     if embed_lyrics and not res.special and fmt in ("flac", "mp3"):
-        _maybe_embed_lyrics(src, final, fmt, res)
+        _maybe_embed_lyrics(src, final, fmt, res, lyrics_mode)
 
     if res.special and not res.reason:
         res.reason = "特殊格式（如全景声），已原样导出"

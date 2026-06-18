@@ -52,6 +52,19 @@ def test_embed_status_hint(app, tmp_path):
     assert w.model.rows[0].reason == ""              # 取消后清除
 
 
+def test_delete_src_also_removes_lrc(app, tmp_path):
+    import gui.workers as wk
+    src = tmp_path / "s.mp3"
+    src.write_bytes(b"\xff\xfb\x90\x00" + b"\x00" * 200)
+    lrc = tmp_path / "s.lrc"
+    lrc.write_text("[00:01.00]hi", encoding="utf-8")
+    w = wk.ConvertWorker(0, str(src), str(tmp_path / "out"), "{标题}", "rename",
+                         delete_src=True, embed_lyrics=False)  # 即便不嵌入也删 .lrc
+    w.run()
+    assert not src.exists()
+    assert not lrc.exists()
+
+
 def test_remove_selected_row(app):
     import gui.main_window as mw
     from gui.task_model import Row
