@@ -39,18 +39,19 @@ def keystream_pad(rc4_key: bytes) -> bytes:
 
 
 def xor_audio(rc4_key: bytes, data: bytes) -> bytes:
-    """用周期性密钥垫 + C 级大整数 XOR 分块异或，等价于逐字节算法但快约百倍。"""
+    """用周期性密钥垫 + numpy 位运算分块异或。numpy ufunc 计算时会释放 GIL，
+    使批量转换时界面线程仍能流畅运行；结果与逐字节算法完全一致。"""
     if not data:
         return b""
-    pad = keystream_pad(rc4_key)
-    out = bytearray()
+    import numpy as np
+    pad = np.frombuffer(keystream_pad(rc4_key), dtype=np.uint8)
+    arr = np.frombuffer(data, dtype=np.uint8)
+    out = np.empty_like(arr)
     chunk = 1 << 20  # 1 MiB，为 256 的整数倍，故每块都从相位 0 开始
-    for off in range(0, len(data), chunk):
-        block = data[off:off + chunk]
-        m = len(block)
-        tiled = (pad * ((m + 255) // 256))[:m]
-        out += (int.from_bytes(block, "big") ^ int.from_bytes(tiled, "big")).to_bytes(m, "big")
-    return bytes(out)
+    for off in range(0, arr.size, chunk):
+        block = arr[off:off + chunk]
+        np.bitwise_xor(block, np.resize(pad, block.size), out=out[off:off + chunk])
+    return out.tobytes()
 
 
 from dataclasses import dataclass
