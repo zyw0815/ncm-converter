@@ -28,3 +28,14 @@ def test_wav_enabled_with_ffmpeg(app, monkeypatch):
     monkeypatch.setattr(mw, "find_ffmpeg", lambda: "/usr/bin/ffmpeg")
     w = mw.MainWindow()
     assert w.to_wav.isEnabled() is True
+
+
+def test_remove_selected_row(app):
+    import gui.main_window as mw
+    from gui.task_model import Row
+    w = mw.MainWindow()
+    w.model.add_rows([Row(source="a.ncm"), Row(source="b.ncm"), Row(source="c.ncm")])
+    w.table.selectRow(1)
+    w.remove_selected()
+    assert w.model.rowCount() == 2
+    assert [r.source for r in w.model.rows] == ["a.ncm", "c.ncm"]

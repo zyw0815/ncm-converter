@@ -110,6 +110,16 @@ class QueueModel(QAbstractTableModel):
     def failed_indexes(self):
         return [i for i, r in enumerate(self.rows) if r.status == "failed"]
 
+    def remove_rows(self, indexes):
+        """移除指定下标的行（从大到小删，避免下标错位）。返回被移除行的 source 列表。"""
+        removed = []
+        for i in sorted(set(indexes), reverse=True):
+            if 0 <= i < len(self.rows):
+                self.beginRemoveRows(QModelIndex(), i, i)
+                removed.append(self.rows.pop(i).source)
+                self.endRemoveRows()
+        return removed
+
     def clear(self):
         self.beginResetModel()
         self.rows = []
