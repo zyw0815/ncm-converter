@@ -26,6 +26,30 @@ def test_image_info_unknown():
     assert image_info(b"not an image") == ("image/jpeg", 0, 0, 0)
 
 
+def _jpeg(mode):
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new(mode, (64, 64), 0 if mode == "L" else (10, 20, 30)).save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+def test_normalize_grayscale_cover_to_rgb():
+    import io
+    from PIL import Image
+    from core.metadata import normalize_cover
+    gray = _jpeg("L")
+    assert Image.open(io.BytesIO(gray)).mode == "L"      # 原图是灰度
+    out = normalize_cover(gray)
+    assert Image.open(io.BytesIO(out)).mode == "RGB"     # 归一化后为 RGB
+
+
+def test_normalize_rgb_cover_unchanged():
+    from core.metadata import normalize_cover
+    rgb = _jpeg("RGB")
+    assert normalize_cover(rgb) is rgb                   # 已是 RGB：原样返回，不重压
+
+
 def test_extract_full():
     meta = {"musicName": "夜曲", "artist": [["周杰伦", 1], ["方文山", 2]], "album": "十一月的萧邦"}
     tags = extract_tags(meta)
