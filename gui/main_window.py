@@ -11,6 +11,7 @@ from gui.task_model import QueueModel, Row
 from gui.workers import ConvertWorker, PreviewWorker
 from gui import theme
 from core.transcode import find_ffmpeg
+from core.lyrics import find_lrc
 
 try:
     from version import __version__ as APP_VERSION
@@ -179,13 +180,14 @@ class MainWindow(QMainWindow):
         self.del_src = QCheckBox("删除原文件")
         for cb, tip in (
             (self.keep_tree, "选择文件夹批量转换时，在输出目录里复刻原来的子文件夹层级。"),
-            (self.embed_lrc, "转换时在源文件同目录查找同名 .lrc 歌词，找到就嵌入输出（FLAC/MP3）。"),
-            (self.to_wav, "把输出再转成 WAV（需要 ffmpeg）。WAV 兼容性强但体积大、且不含封面/标签，一般无需开启。"),
-            (self.del_src, "转换成功后删除原始文件（即移动而非复制）。默认关闭；首次勾选会二次确认。"),
+            (self.embed_lrc, "转换时在源文件同目录查找同名 .lrc 歌词，找到就嵌入输出（FLAC/MP3；WAV 不支持）。"),
+            (self.to_wav, "把输出再转成 WAV（需要 ffmpeg）。WAV 兼容性强但体积大，且不含封面/标签/歌词，一般无需开启。"),
+            (self.del_src, "转换成功后删除原始文件（即移动而非复制）。若同时开启「嵌入歌词」，会一并删除同名 .lrc。默认关闭；首次勾选会二次确认。"),
         ):
             opt.addWidget(cb)
+            opt.addSpacing(4)
             opt.addWidget(self._help(tip))
-            opt.addSpacing(14)
+            opt.addSpacing(18)
         opt.addStretch()
         root.addLayout(opt)
 
@@ -228,7 +230,22 @@ class MainWindow(QMainWindow):
             self.to_wav.setEnabled(False)
             self.to_wav.setToolTip("未检测到 ffmpeg，无法转 WAV；安装 ffmpeg 后重启即可使用")
 
+        self.embed_lrc.toggled.connect(self._on_embed_toggled)
+
         self.apply_theme()
+
+    def _on_embed_toggled(self, checked=None):
+        """勾选「嵌入歌词」后，给有同名 .lrc 的待转项在状态里标注「准备嵌入歌词」。"""
+        if checked is None:
+            checked = self.embed_lrc.isChecked()
+        for i, r in enumerate(self.model.rows):
+            if r.status != "pending":
+                continue
+            if checked and find_lrc(r.source):
+                if r.reason != "准备嵌入歌词":
+                    self.model.update_row(i, reason="准备嵌入歌词")
+            elif r.reason == "准备嵌入歌词":
+                self.model.update_row(i, reason="")
 
     def _help(self, text):
         """生成一个「?」帮助按钮：悬停显示说明，点击也弹出说明气泡。"""
@@ -259,6 +276,7 @@ class MainWindow(QMainWindow):
             w = PreviewWorker(start + offset, f)
             w.signals.done.connect(self.on_preview)
             self.pool.start(w)
+        self._on_embed_toggled()  # 新加入的项若有歌词且已勾选嵌入，标注状态
 
     def on_preview(self, index, tags, fmt, cover):
         if self.model.rows[index].status != "pending":

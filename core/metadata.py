@@ -10,7 +10,9 @@ def write_lyrics(path: str, fmt: str, text: str) -> None:
         return
     if fmt == "flac":
         audio = FLAC(path)
+        # 两个字段都写：不同播放器认的不一样
         audio["LYRICS"] = text
+        audio["UNSYNCEDLYRICS"] = text
         audio.save()
     elif fmt == "mp3":
         try:

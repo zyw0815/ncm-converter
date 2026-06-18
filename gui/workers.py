@@ -2,6 +2,7 @@ import os
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
 from core.converter import convert_file
 from core.transcode import transcode, FfmpegNotFound
+from core.lyrics import find_lrc
 
 
 class WorkerSignals(QObject):
@@ -47,6 +48,14 @@ class ConvertWorker(QRunnable):
                 os.remove(self.src)
             except OSError:
                 pass
+            # 嵌入歌词时，原 .lrc 已写进输出，连同删除避免留下孤儿文件
+            if self.embed_lyrics:
+                lrc = find_lrc(self.src)
+                if lrc:
+                    try:
+                        os.remove(lrc)
+                    except OSError:
+                        pass
         self.signals.finished.emit(self.index, res)
 
 
