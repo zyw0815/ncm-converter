@@ -9,7 +9,7 @@ Convert NetEase Cloud Music `.ncm` files into audio that any player can open, wh
 - **Lossless by design**: NCM is an encrypted wrapper around the original audio, not a codec. The app decrypts and writes the original stream untouched — FLAC stays FLAC, bit-for-bit identical, with no quality change.
 - **Fast & smooth**: the decryption keystream is periodic (256 bytes), so it is precomputed once and applied with a vectorized numpy XOR that releases the GIL. A 24-bit/192 kHz track decrypts in ~0.25 s, and the interface stays responsive even when converting many large files at once.
 - **Original format first**: FLAC → FLAC, MP3 → MP3 — no re-encoding.
-- **MP3 passthrough**: `.mp3` files are accepted and placed into the output unchanged (not re-encoded), copied by default or moved when "delete source" is on.
+- **MP3 / FLAC passthrough**: existing `.mp3` and `.flac` files are accepted and passed through unchanged (not re-encoded) — they can still be renamed, have lyrics added, and be copied by default (or moved when "delete source" is on).
 - **Special formats handled safely**: spatial / Dolby audio is exported as-is (`.m4a`) and flagged, never force-converted into broken files.
 - **Batch & queue management**: drag in files or folders (recursive scan), a numbered list, multi-threaded conversion with per-file progress and a live spinner; remove selected items (Delete / Backspace) or clear all.
 - **Preview before converting**: title / artist / album / format / cover thumbnail shown up front.
