@@ -17,6 +17,10 @@ Convert NetEase Cloud Music `.ncm` files into audio that any player can open, wh
 - **Lyrics**: if a same-named `.lrc` sits next to the source, it can be added to the result — as an external sidecar `.lrc` (recommended, best player compatibility) or embedded inside the file. NetEase JSON lines are cleaned, timed lines kept.
 - **Thoughtful options**: naming templates, preserve folder structure, conflict policy (overwrite / rename / skip), optional convert-to-WAV (auto-disabled when ffmpeg is missing), optional delete-source (also removes the matching `.lrc`), light / dark theme, retry failed, one-click open output folder — with a **?** help button next to each option.
 
+## Screenshot
+
+![NCM Converter](assets/screenshot.png)
+
 ## Requirements & Installation
 
 Requires Python 3.9+.
