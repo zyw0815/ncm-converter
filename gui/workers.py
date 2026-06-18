@@ -73,9 +73,11 @@ class PreviewWorker(QRunnable):
 
     def run(self):
         try:
-            if self.src.lower().endswith(".mp3"):
+            low = self.src.lower()
+            if low.endswith((".mp3", ".flac")):
                 tags, cover = read_audio_tags(self.src)
-                self.signals.done.emit(self.index, tags, "mp3", cover or b"")
+                fmt = "flac" if low.endswith(".flac") else "mp3"
+                self.signals.done.emit(self.index, tags, fmt, cover or b"")
                 return
             with open(self.src, "rb") as f:
                 data = f.read()
