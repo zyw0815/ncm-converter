@@ -10,7 +10,7 @@ class WorkerSignals(QObject):
 
 class ConvertWorker(QRunnable):
     def __init__(self, index, src, out_dir, template, conflict,
-                 to_wav=False, delete_src=False):
+                 to_wav=False, delete_src=False, embed_lyrics=False):
         super().__init__()
         self.index = index
         self.src = src
@@ -19,10 +19,12 @@ class ConvertWorker(QRunnable):
         self.conflict = conflict
         self.to_wav = to_wav
         self.delete_src = delete_src
+        self.embed_lyrics = embed_lyrics
         self.signals = WorkerSignals()
 
     def run(self):
-        res = convert_file(self.src, self.out_dir, self.template, self.conflict)
+        res = convert_file(self.src, self.out_dir, self.template, self.conflict,
+                           embed_lyrics=self.embed_lyrics)
         if res.status == "ok" and self.to_wav and not res.special and not res.passthrough:
             original = res.output_path
             try:
