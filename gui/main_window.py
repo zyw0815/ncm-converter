@@ -170,10 +170,12 @@ class MainWindow(QMainWindow):
         self.conflict.addItems(["重命名", "跳过", "覆盖"])
         opt.addWidget(self.conflict)
         self.keep_tree = QCheckBox("保留目录结构")
+        self.embed_lrc = QCheckBox("嵌入歌词")
         self.to_wav = QCheckBox("转 WAV")
         self.del_src = QCheckBox("删除原文件")
         opt.addSpacing(8)
         opt.addWidget(self.keep_tree)
+        opt.addWidget(self.embed_lrc)
         opt.addWidget(self.to_wav)
         opt.addWidget(self.del_src)
         opt.addStretch()
@@ -202,7 +204,7 @@ class MainWindow(QMainWindow):
         # 转换时需要禁用的控件（主题切换不在内，转换中也能切）
         self._controls = [
             self.btn_files, self.btn_folder, self.out_edit, self.btn_out,
-            self.tmpl, self.conflict, self.keep_tree, self.to_wav, self.del_src,
+            self.tmpl, self.conflict, self.keep_tree, self.embed_lrc, self.to_wav, self.del_src,
             self.start_btn, self.retry_btn, self.remove_btn, self.clear_btn, self.open_btn,
         ]
 
@@ -299,7 +301,8 @@ class MainWindow(QMainWindow):
             src = self.model.rows[i].source
             w = ConvertWorker(i, src, self._out_dir_for(src), self.tmpl.currentText(),
                               CONFLICT_MAP[self.conflict.currentText()],
-                              to_wav=self.to_wav.isChecked(), delete_src=self.del_src.isChecked())
+                              to_wav=self.to_wav.isChecked(), delete_src=self.del_src.isChecked(),
+                              embed_lyrics=self.embed_lrc.isChecked())
             w.signals.finished.connect(self.on_finished)
             self.pool.start(w)
         self.update_progress()

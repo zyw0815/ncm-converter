@@ -1,7 +1,25 @@
 # core/metadata.py
 from mutagen import File as MutagenFile
 from mutagen.flac import FLAC, Picture
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, APIC, ID3NoHeaderError
+from mutagen.id3 import ID3, TIT2, TPE1, TALB, APIC, USLT, ID3NoHeaderError
+
+
+def write_lyrics(path: str, fmt: str, text: str) -> None:
+    """把歌词写入已有的输出文件：FLAC 用 LYRICS 注释，MP3 用 USLT 帧。"""
+    if not text:
+        return
+    if fmt == "flac":
+        audio = FLAC(path)
+        audio["LYRICS"] = text
+        audio.save()
+    elif fmt == "mp3":
+        try:
+            id3 = ID3(path)
+        except ID3NoHeaderError:
+            id3 = ID3()
+        id3.delall("USLT")
+        id3.add(USLT(encoding=3, lang="und", desc="", text=text))
+        id3.save(path)
 
 
 def image_info(data: bytes):
