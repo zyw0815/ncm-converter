@@ -27,12 +27,29 @@ def build_keybox(rc4_key: bytes) -> bytes:
     return bytes(box)
 
 
-def xor_audio(rc4_key: bytes, data: bytes) -> bytes:
+def keystream_pad(rc4_key: bytes) -> bytes:
+    """密钥流以 256 字节为周期（每字节只取决于 (i+1) mod 256），
+    预计算这一个周期的 256 字节密钥垫。"""
     box = build_keybox(rc4_key)
-    out = bytearray(len(data))
-    for i in range(len(data)):
+    pad = bytearray(256)
+    for i in range(256):
         j = (i + 1) & 0xFF
-        out[i] = data[i] ^ box[(box[j] + box[(box[j] + j) & 0xFF]) & 0xFF]
+        pad[i] = box[(box[j] + box[(box[j] + j) & 0xFF]) & 0xFF]
+    return bytes(pad)
+
+
+def xor_audio(rc4_key: bytes, data: bytes) -> bytes:
+    """用周期性密钥垫 + C 级大整数 XOR 分块异或，等价于逐字节算法但快约百倍。"""
+    if not data:
+        return b""
+    pad = keystream_pad(rc4_key)
+    out = bytearray()
+    chunk = 1 << 20  # 1 MiB，为 256 的整数倍，故每块都从相位 0 开始
+    for off in range(0, len(data), chunk):
+        block = data[off:off + chunk]
+        m = len(block)
+        tiled = (pad * ((m + 255) // 256))[:m]
+        out += (int.from_bytes(block, "big") ^ int.from_bytes(tiled, "big")).to_bytes(m, "big")
     return bytes(out)
 
 
