@@ -44,6 +44,25 @@ def image_info(data: bytes):
     return "image/jpeg", 0, 0, 0
 
 
+def normalize_cover(cover: bytes) -> bytes:
+    """把非 RGB 的封面（灰度/CMYK/调色板/带透明）统一转成 RGB JPEG，
+    保证各播放器都能显示。已是 RGB 的原样返回（不重压、不掉质）。
+    无法处理（缺 Pillow 或非图片）时原样返回。"""
+    if not cover:
+        return cover
+    try:
+        import io
+        from PIL import Image
+        im = Image.open(io.BytesIO(cover))
+        if im.mode == "RGB":
+            return cover
+        buf = io.BytesIO()
+        im.convert("RGB").save(buf, format="JPEG", quality=92)
+        return buf.getvalue()
+    except Exception:
+        return cover
+
+
 def extract_tags(meta: dict) -> dict:
     return {
         "title": meta.get("musicName", "") or "",
@@ -85,6 +104,7 @@ def write_flac_tags(path: str, tags: dict, cover: bytes) -> None:
     if tags["album"]:
         audio["album"] = tags["album"]
     if cover:
+        cover = normalize_cover(cover)
         mime, width, height, depth = image_info(cover)
         pic = Picture()
         pic.type = 3  # front cover
@@ -110,6 +130,7 @@ def write_mp3_tags(path: str, tags: dict, cover: bytes) -> None:
     if tags["album"]:
         id3.add(TALB(encoding=3, text=tags["album"]))
     if cover:
+        cover = normalize_cover(cover)
         mime, _w, _h, _d = image_info(cover)
         id3.add(APIC(encoding=3, mime=mime, type=3, desc="Cover", data=cover))
     id3.save(path)
