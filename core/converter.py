@@ -1,9 +1,10 @@
 # core/converter.py
 import os
+import shutil
 from dataclasses import dataclass, field
 from core.ncm import parse_ncm, NotNcmError
 from core.formats import detect_format, is_special
-from core.metadata import extract_tags, write_flac_tags, write_mp3_tags
+from core.metadata import extract_tags, read_audio_tags, write_flac_tags, write_mp3_tags
 from core.naming import render_name, resolve_conflict
 
 
@@ -17,12 +18,53 @@ class ConvertResult:
     album: str = ""
     fmt: str = ""
     special: bool = False
+    passthrough: bool = False   # True 表示原样导出（如 mp3），未做转码
     output_path: str = ""
     cover: bytes = field(default=b"", repr=False)
 
 
+def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str) -> ConvertResult:
+    """已是 mp3：不转码，按命名模板原样复制到输出目录（移动与否由上层 delete_src 决定）。"""
+    res = ConvertResult(source=src, fmt="mp3", passthrough=True)
+    tags, cover = read_audio_tags(src)
+    res.title = tags["title"]
+    res.artist = ", ".join(tags["artists"])
+    res.album = tags["album"]
+    res.cover = cover
+
+    os.makedirs(out_dir, exist_ok=True)
+    rel = render_name(template, tags) if tags["title"] else os.path.splitext(os.path.basename(src))[0]
+    target = os.path.join(out_dir, rel + ".mp3")
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+
+    final = resolve_conflict(target, conflict)
+    if final is None:
+        res.status = "skipped"
+        res.reason = "目标已存在，按设置跳过"
+        return res
+
+    if os.path.abspath(final) == os.path.abspath(src):
+        # 源与目标同一文件，无需复制
+        res.output_path = final
+        res.reason = "MP3 原样导出（未转换）"
+        return res
+
+    try:
+        shutil.copy2(src, final)
+    except OSError as e:
+        res.status = "failed"
+        res.reason = f"输出目录无法写入：{e}"
+        return res
+
+    res.output_path = final
+    res.reason = "MP3 原样导出（未转换）"
+    return res
+
+
 def convert_file(src: str, out_dir: str, template: str, conflict: str,
                  write_tags: bool = True) -> ConvertResult:
+    if src.lower().endswith(".mp3"):
+        return _passthrough_mp3(src, out_dir, template, conflict)
     res = ConvertResult(source=src)
     try:
         with open(src, "rb") as f:
