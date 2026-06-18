@@ -176,18 +176,31 @@ class MainWindow(QMainWindow):
         opt.setSpacing(6)
         self.keep_tree = QCheckBox("保留目录结构")
         self.embed_lrc = QCheckBox("嵌入歌词")
+        self.lyrics_mode = QComboBox()
+        self.lyrics_mode.addItems(["外嵌（推荐）", "内嵌"])
+        self.lyrics_mode.setMinimumWidth(120)
+        self.lyrics_mode.setEnabled(False)
         self.to_wav = QCheckBox("转 WAV")
         self.del_src = QCheckBox("删除原文件")
-        for cb, tip in (
-            (self.keep_tree, "选择文件夹批量转换时，在输出目录里复刻原来的子文件夹层级。"),
-            (self.embed_lrc, "转换时在源文件同目录查找同名 .lrc：内嵌进输出（FLAC/MP3），并在输出旁再放一个同名 .lrc，方便只认外挂歌词的播放器显示。"),
-            (self.to_wav, "把输出再转成 WAV（需要 ffmpeg）。WAV 兼容性强但体积大，且不含封面/标签/歌词，一般无需开启。"),
-            (self.del_src, "转换成功后删除原始文件（即移动而非复制）。若同时开启「嵌入歌词」，会一并删除同名 .lrc。默认关闭；首次勾选会二次确认。"),
-        ):
-            opt.addWidget(cb)
+
+        def add_item(widget, tip, extra=None):
+            opt.addWidget(widget)
+            if extra is not None:
+                opt.addSpacing(6)
+                opt.addWidget(extra)
             opt.addSpacing(4)
             opt.addWidget(self._help(tip))
             opt.addSpacing(18)
+
+        add_item(self.keep_tree, "选择文件夹批量转换时，在输出目录里复刻原来的子文件夹层级。")
+        add_item(self.embed_lrc,
+                 "把源文件同目录的同名 .lrc 歌词加入结果（WAV 不支持）。\n"
+                 "· 外嵌（推荐）：在输出旁生成 .lrc 文件，兼容性好，几乎所有播放器都能显示。\n"
+                 "· 内嵌：写进音频文件内部，单文件更整洁，但不少播放器不读、可能不显示。\n"
+                 "若只想要单个文件又不在意歌词，建议直接不勾「嵌入歌词」。",
+                 extra=self.lyrics_mode)
+        add_item(self.to_wav, "把输出再转成 WAV（需要 ffmpeg）。WAV 兼容性强但体积大，且不含封面/标签/歌词，一般无需开启。")
+        add_item(self.del_src, "转换成功后删除原始文件，并连同源文件旁的同名 .lrc 一起删除。默认关闭；首次勾选会二次确认。")
         opt.addStretch()
         root.addLayout(opt)
 
@@ -217,7 +230,8 @@ class MainWindow(QMainWindow):
         # 转换时需要禁用的控件（主题切换不在内，转换中也能切）
         self._controls = [
             self.btn_files, self.btn_folder, self.out_edit, self.btn_out,
-            self.tmpl, self.conflict, self.keep_tree, self.embed_lrc, self.to_wav, self.del_src,
+            self.tmpl, self.conflict, self.keep_tree, self.embed_lrc, self.lyrics_mode,
+            self.to_wav, self.del_src,
             self.start_btn, self.retry_btn, self.remove_btn, self.clear_btn, self.open_btn,
         ]
 
@@ -238,6 +252,7 @@ class MainWindow(QMainWindow):
         """勾选「嵌入歌词」后，给有同名 .lrc 的待转项在状态里标注「准备嵌入歌词」。"""
         if checked is None:
             checked = self.embed_lrc.isChecked()
+        self.lyrics_mode.setEnabled(checked)  # 外嵌/内嵌选择仅在勾选嵌入歌词时可用
         for i, r in enumerate(self.model.rows):
             if r.status != "pending":
                 continue
@@ -312,8 +327,10 @@ class MainWindow(QMainWindow):
     def set_busy(self, busy):
         for w in self._controls:
             w.setDisabled(busy)
-        if not busy and not self._ffmpeg_ok:
-            self.to_wav.setDisabled(True)  # ffmpeg 不可用时始终保持禁用
+        if not busy:
+            if not self._ffmpeg_ok:
+                self.to_wav.setDisabled(True)            # ffmpeg 不可用时始终保持禁用
+            self.lyrics_mode.setEnabled(self.embed_lrc.isChecked())  # 仅勾选嵌入歌词时可用
         self.drop.setAcceptDrops(not busy)
         if busy:
             self.spinner_timer.start()
@@ -338,10 +355,11 @@ class MainWindow(QMainWindow):
             self.model.set_status(i, "running")
             self._running += 1
             src = self.model.rows[i].source
+            lyrics_mode = "embed" if self.lyrics_mode.currentText() == "内嵌" else "sidecar"
             w = ConvertWorker(i, src, self._out_dir_for(src), self.tmpl.currentText(),
                               CONFLICT_MAP[self.conflict.currentText()],
                               to_wav=self.to_wav.isChecked(), delete_src=self.del_src.isChecked(),
-                              embed_lyrics=self.embed_lrc.isChecked())
+                              embed_lyrics=self.embed_lrc.isChecked(), lyrics_mode=lyrics_mode)
             w.signals.finished.connect(self.on_finished)
             self.pool.start(w)
         self.update_progress()

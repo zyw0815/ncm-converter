@@ -10,14 +10,36 @@ def test_read_lyrics_gbk(tmp_path):
     assert "你好世界" in read_lyrics(str(tmp_path / "a.ncm"))
 
 
-def test_embed_writes_sidecar_lrc(tmp_path):
+def _mk(tmp_path):
     src = tmp_path / "s.mp3"
     src.write_bytes(b"\xff\xfb\x90\x00" + b"\x00" * 200)
     (tmp_path / "s.lrc").write_text("[00:01.00]hi", encoding="utf-8")
+    return src
+
+
+def test_lyrics_mode_sidecar_default(tmp_path):
+    src = _mk(tmp_path)
     res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename", embed_lyrics=True)
     sidecar = os.path.splitext(res.output_path)[0] + ".lrc"
-    assert os.path.exists(sidecar)                       # 输出旁生成外挂 .lrc
+    assert os.path.exists(sidecar)                       # 外嵌：输出旁生成 .lrc
     assert open(sidecar, encoding="utf-8").read() == "[00:01.00]hi"
+    assert "已生成歌词文件" in res.reason
+    from mutagen.id3 import ID3, ID3NoHeaderError
+    try:
+        uslt = ID3(res.output_path).getall("USLT")
+    except ID3NoHeaderError:
+        uslt = []
+    assert not uslt                                       # 外嵌不写内嵌标签
+
+
+def test_lyrics_mode_embed_only(tmp_path):
+    src = _mk(tmp_path)
+    res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename",
+                       embed_lyrics=True, lyrics_mode="embed")
+    sidecar = os.path.splitext(res.output_path)[0] + ".lrc"
+    assert not os.path.exists(sidecar)                   # 内嵌：不生成外挂文件
+    from mutagen.id3 import ID3
+    assert ID3(res.output_path).getall("USLT")           # 内嵌写进标签
     assert "已嵌入歌词" in res.reason
 
 

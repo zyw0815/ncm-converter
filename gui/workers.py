@@ -11,7 +11,7 @@ class WorkerSignals(QObject):
 
 class ConvertWorker(QRunnable):
     def __init__(self, index, src, out_dir, template, conflict,
-                 to_wav=False, delete_src=False, embed_lyrics=False):
+                 to_wav=False, delete_src=False, embed_lyrics=False, lyrics_mode="sidecar"):
         super().__init__()
         self.index = index
         self.src = src
@@ -21,11 +21,12 @@ class ConvertWorker(QRunnable):
         self.to_wav = to_wav
         self.delete_src = delete_src
         self.embed_lyrics = embed_lyrics
+        self.lyrics_mode = lyrics_mode
         self.signals = WorkerSignals()
 
     def run(self):
         res = convert_file(self.src, self.out_dir, self.template, self.conflict,
-                           embed_lyrics=self.embed_lyrics)
+                           embed_lyrics=self.embed_lyrics, lyrics_mode=self.lyrics_mode)
         if res.status == "ok" and self.to_wav and not res.special and not res.passthrough:
             original = res.output_path
             try:
@@ -44,16 +45,11 @@ class ConvertWorker(QRunnable):
             except Exception as e:
                 res.reason = f"转码失败，已保留原始格式：{e}"
         if res.status == "ok" and self.delete_src:
-            try:
-                os.remove(self.src)
-            except OSError:
-                pass
-            # 嵌入歌词时，原 .lrc 已写进输出，连同删除避免留下孤儿文件
-            if self.embed_lyrics:
-                lrc = find_lrc(self.src)
-                if lrc:
+            # 删原文件，并连同源旁的同名 .lrc 一起删（无论是否嵌入歌词）
+            for path in (self.src, find_lrc(self.src)):
+                if path:
                     try:
-                        os.remove(lrc)
+                        os.remove(path)
                     except OSError:
                         pass
         self.signals.finished.emit(self.index, res)
