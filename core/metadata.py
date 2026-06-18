@@ -112,6 +112,13 @@ def read_audio_tags(path: str):
                 break
     except Exception:
         pass
+    if not cover:  # FLAC 封面在 picture 块里，不是 ID3
+        try:
+            pics = FLAC(path).pictures
+            if pics:
+                cover = pics[0].data
+        except Exception:
+            pass
     return tags, cover
 
 
