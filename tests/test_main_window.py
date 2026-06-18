@@ -30,6 +30,13 @@ def test_wav_enabled_with_ffmpeg(app, monkeypatch):
     assert w.to_wav.isEnabled() is True
 
 
+def test_default_conflict_is_overwrite(app):
+    import gui.main_window as mw
+    w = mw.MainWindow()
+    assert w.conflict.currentText() == "覆盖"
+    assert w.conflict.itemText(0) == "覆盖"
+
+
 def test_remove_selected_row(app):
     import gui.main_window as mw
     from gui.task_model import Row
