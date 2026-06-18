@@ -70,6 +70,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"NCM 转换器 v{APP_VERSION}" if APP_VERSION else "NCM 转换器")
         self.resize(960, 660)
         self.pool = QThreadPool.globalInstance()
+        # 限制并发数：避免占满 CPU、给界面线程留出余量（解密本身已大幅提速）
+        self.pool.setMaxThreadCount(min(4, os.cpu_count() or 4))
         self.model = QueueModel()
         self.dark = False
         self.delete_confirmed = False
