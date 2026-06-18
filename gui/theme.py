@@ -34,6 +34,13 @@ QPushButton#Primary:disabled { background: #b9ccf3; color: #eef2fb; }
 
 QPushButton#Theme { padding: 6px 14px; border-radius: 16px; background: #ffffff; }
 
+QToolButton#Help {
+    min-width: 16px; max-width: 16px; min-height: 16px; max-height: 16px;
+    border: 1px solid #c8cfdd; border-radius: 9px; background: #ffffff;
+    color: #5b6472; font-weight: 700;
+}
+QToolButton#Help:hover { background: #eef2fb; border-color: #b9c2d6; color: #3b82f6; }
+
 QLineEdit, QComboBox {
     background: #ffffff; color: #1f2430; border: 1px solid #d3d9e6;
     border-radius: 8px; padding: 6px 10px; min-height: 18px;
@@ -99,6 +106,13 @@ QPushButton#Primary:pressed { background: #3f78db; }
 QPushButton#Primary:disabled { background: #36486e; color: #9fb2d6; }
 
 QPushButton#Theme { padding: 6px 14px; border-radius: 16px; background: #2a2f3d; }
+
+QToolButton#Help {
+    min-width: 16px; max-width: 16px; min-height: 16px; max-height: 16px;
+    border: 1px solid #4a5269; border-radius: 9px; background: #2a2f3d;
+    color: #99a1b3; font-weight: 700;
+}
+QToolButton#Help:hover { background: #333a4b; border-color: #5b8def; color: #9cc0ff; }
 
 QLineEdit, QComboBox {
     background: #232734; color: #e7eaf0; border: 1px solid #3a4153;

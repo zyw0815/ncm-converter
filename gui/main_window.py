@@ -3,10 +3,10 @@ import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QTableView, QLineEdit, QComboBox, QCheckBox, QProgressBar, QFileDialog,
-    QMessageBox, QHeaderView, QFrame, QAbstractItemView,
+    QMessageBox, QHeaderView, QFrame, QAbstractItemView, QToolButton, QToolTip,
 )
 from PyQt6.QtCore import Qt, QThreadPool, QUrl, QTimer, QSize
-from PyQt6.QtGui import QDesktopServices, QShortcut, QKeySequence
+from PyQt6.QtGui import QDesktopServices, QShortcut, QKeySequence, QCursor
 from gui.task_model import QueueModel, Row
 from gui.workers import ConvertWorker, PreviewWorker
 from gui import theme
@@ -147,45 +147,56 @@ class MainWindow(QMainWindow):
         outrow.addWidget(self.btn_out)
         root.addLayout(outrow)
 
-        # ---- naming row ----
-        namerow = QHBoxLayout()
-        namerow.setSpacing(10)
+        # ---- naming + conflict on one compact row ----
+        cfgrow = QHBoxLayout()
+        cfgrow.setSpacing(8)
         lbl_name = QLabel("命名")
         lbl_name.setObjectName("FieldLabel")
-        namerow.addWidget(lbl_name)
+        cfgrow.addWidget(lbl_name)
         self.tmpl = QComboBox()
-        self.tmpl.setMinimumWidth(280)
+        self.tmpl.setMinimumWidth(160)
         self.tmpl.addItems(["{歌手} - {标题}", "{标题}", "{专辑}/{标题}", "{歌手}/{专辑}/{标题}"])
-        namerow.addWidget(self.tmpl, 1)
-        root.addLayout(namerow)
-
-        # ---- options row ----
-        opt = QHBoxLayout()
-        opt.setSpacing(14)
+        cfgrow.addWidget(self.tmpl)
+        cfgrow.addWidget(self._help("输出文件如何命名。{歌手}{标题}{专辑} 会被替换；用 / 可建子文件夹，如「{专辑}/{标题}」。"))
+        cfgrow.addSpacing(18)
         lbl_conf = QLabel("冲突")
         lbl_conf.setObjectName("FieldLabel")
-        opt.addWidget(lbl_conf)
+        cfgrow.addWidget(lbl_conf)
         self.conflict = QComboBox()
-        self.conflict.setMinimumWidth(120)
-        self.conflict.addItems(["重命名", "跳过", "覆盖"])
-        opt.addWidget(self.conflict)
+        self.conflict.setMinimumWidth(110)
+        self.conflict.addItems(["覆盖", "重命名", "跳过"])
+        cfgrow.addWidget(self.conflict)
+        cfgrow.addWidget(self._help("输出目录已存在同名文件时：覆盖＝替换旧文件；重命名＝自动加 (1)(2)；跳过＝不处理该文件。"))
+        cfgrow.addStretch()
+        root.addLayout(cfgrow)
+
+        # ---- options (checkboxes, each with a ? help button) ----
+        opt = QHBoxLayout()
+        opt.setSpacing(6)
         self.keep_tree = QCheckBox("保留目录结构")
         self.embed_lrc = QCheckBox("嵌入歌词")
         self.to_wav = QCheckBox("转 WAV")
         self.del_src = QCheckBox("删除原文件")
-        opt.addSpacing(8)
-        opt.addWidget(self.keep_tree)
-        opt.addWidget(self.embed_lrc)
-        opt.addWidget(self.to_wav)
-        opt.addWidget(self.del_src)
+        for cb, tip in (
+            (self.keep_tree, "选择文件夹批量转换时，在输出目录里复刻原来的子文件夹层级。"),
+            (self.embed_lrc, "转换时在源文件同目录查找同名 .lrc 歌词，找到就嵌入输出（FLAC/MP3）。"),
+            (self.to_wav, "把输出再转成 WAV（需要 ffmpeg）。WAV 兼容性强但体积大、且不含封面/标签，一般无需开启。"),
+            (self.del_src, "转换成功后删除原始文件（即移动而非复制）。默认关闭；首次勾选会二次确认。"),
+        ):
+            opt.addWidget(cb)
+            opt.addWidget(self._help(tip))
+            opt.addSpacing(14)
         opt.addStretch()
         root.addLayout(opt)
 
-        # ---- bottom: progress + actions ----
+        # ---- progress on its own row ----
+        self.bar = QProgressBar()
+        root.addWidget(self.bar)
+
+        # ---- action buttons, right-aligned ----
         bot = QHBoxLayout()
         bot.setSpacing(10)
-        self.bar = QProgressBar()
-        bot.addWidget(self.bar, 1)
+        bot.addStretch()
         self.start_btn = QPushButton("开始转换")
         self.start_btn.setObjectName("Primary")
         self.start_btn.clicked.connect(self.start)
@@ -218,6 +229,16 @@ class MainWindow(QMainWindow):
             self.to_wav.setToolTip("未检测到 ffmpeg，无法转 WAV；安装 ffmpeg 后重启即可使用")
 
         self.apply_theme()
+
+    def _help(self, text):
+        """生成一个「?」帮助按钮：悬停显示说明，点击也弹出说明气泡。"""
+        b = QToolButton()
+        b.setText("?")
+        b.setObjectName("Help")
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.setToolTip(text)
+        b.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), text, b))
+        return b
 
     # ---------- adding files ----------
     def add_paths(self, paths):
