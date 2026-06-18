@@ -5,6 +5,18 @@ from tests.conftest import build_ncm
 from core.converter import convert_file
 
 
+def test_convert_flac_passthrough(tmp_path):
+    src = tmp_path / "song.flac"
+    src.write_bytes(b"fLaC" + b"\x00" * 200)
+    res = convert_file(str(src), str(tmp_path / "out"), "{歌手} - {标题}",
+                       conflict="rename", write_tags=False)
+    assert res.status == "ok"
+    assert res.fmt == "flac"
+    assert res.passthrough is True
+    assert res.output_path.endswith(".flac")
+    assert os.path.exists(res.output_path)
+
+
 def test_convert_partial_on_tag_failure(tmp_path, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("nope")

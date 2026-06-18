@@ -47,10 +47,12 @@ def _maybe_embed_lyrics(src: str, out_path: str, fmt: str, res: "ConvertResult",
         res.reason = (res.reason + f"；歌词写入失败：{e}").lstrip("；") if res.reason else f"歌词写入失败：{e}"
 
 
-def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str,
-                     embed_lyrics: bool = False, lyrics_mode: str = "sidecar") -> ConvertResult:
-    """已是 mp3：不转码，按命名模板原样复制到输出目录（移动与否由上层 delete_src 决定）。"""
-    res = ConvertResult(source=src, fmt="mp3", passthrough=True)
+def _passthrough(src: str, out_dir: str, template: str, conflict: str,
+                 embed_lyrics: bool = False, lyrics_mode: str = "sidecar") -> ConvertResult:
+    """已是可播放格式（mp3 / flac）：不转码，按命名模板原样复制到输出目录
+    （移动与否由上层 delete_src 决定）。"""
+    fmt = "flac" if src.lower().endswith(".flac") else "mp3"
+    res = ConvertResult(source=src, fmt=fmt, passthrough=True)
     tags, cover = read_audio_tags(src)
     res.title = tags["title"]
     res.artist = ", ".join(tags["artists"])
@@ -59,7 +61,7 @@ def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str,
 
     os.makedirs(out_dir, exist_ok=True)
     rel = render_name(template, tags) if tags["title"] else os.path.splitext(os.path.basename(src))[0]
-    target = os.path.join(out_dir, rel + ".mp3")
+    target = os.path.join(out_dir, rel + "." + fmt)
     os.makedirs(os.path.dirname(target), exist_ok=True)
 
     final = resolve_conflict(target, conflict)
@@ -68,12 +70,13 @@ def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str,
         res.reason = "目标已存在，按设置跳过"
         return res
 
+    note = f"{fmt.upper()} 原样导出（未转换）"
     if os.path.abspath(final) == os.path.abspath(src):
         # 源与目标同一文件，无需复制
         res.output_path = final
-        res.reason = "MP3 原样导出（未转换）"
+        res.reason = note
         if embed_lyrics:
-            _maybe_embed_lyrics(src, final, "mp3", res, lyrics_mode)
+            _maybe_embed_lyrics(src, final, fmt, res, lyrics_mode)
         return res
 
     try:
@@ -84,17 +87,17 @@ def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str,
         return res
 
     res.output_path = final
-    res.reason = "MP3 原样导出（未转换）"
+    res.reason = note
     if embed_lyrics:
-        _maybe_embed_lyrics(src, final, "mp3", res, lyrics_mode)
+        _maybe_embed_lyrics(src, final, fmt, res, lyrics_mode)
     return res
 
 
 def convert_file(src: str, out_dir: str, template: str, conflict: str,
                  write_tags: bool = True, embed_lyrics: bool = False,
                  lyrics_mode: str = "sidecar") -> ConvertResult:
-    if src.lower().endswith(".mp3"):
-        return _passthrough_mp3(src, out_dir, template, conflict, embed_lyrics, lyrics_mode)
+    if src.lower().endswith((".mp3", ".flac")):
+        return _passthrough(src, out_dir, template, conflict, embed_lyrics, lyrics_mode)
     res = ConvertResult(source=src)
     try:
         with open(src, "rb") as f:

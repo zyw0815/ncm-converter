@@ -18,7 +18,7 @@ try:
 except Exception:
     APP_VERSION = ""
 
-SUPPORTED_EXT = (".ncm", ".mp3")
+SUPPORTED_EXT = (".ncm", ".mp3", ".flac")
 CONFLICT_MAP = {"重命名": "rename", "跳过": "skip", "覆盖": "overwrite"}
 
 
@@ -301,7 +301,7 @@ class MainWindow(QMainWindow):
                               album=tags.get("album", ""), fmt=fmt, cover=cover)
 
     def pick_files(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "选择文件", "", "音频 (*.ncm *.mp3)")
+        files, _ = QFileDialog.getOpenFileNames(self, "选择文件", "", "音频 (*.ncm *.mp3 *.flac)")
         if files:
             self.add_paths(files)
 
