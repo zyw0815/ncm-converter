@@ -37,6 +37,21 @@ def test_default_conflict_is_overwrite(app):
     assert w.conflict.itemText(0) == "覆盖"
 
 
+def test_embed_status_hint(app, tmp_path):
+    import gui.main_window as mw
+    from gui.task_model import Row
+    ncm = tmp_path / "song.ncm"; ncm.write_bytes(b"x")
+    (tmp_path / "song.lrc").write_text("[00:01.00]hi", encoding="utf-8")
+    nolrc = tmp_path / "other.ncm"; nolrc.write_bytes(b"x")
+    w = mw.MainWindow()
+    w.model.add_rows([Row(source=str(ncm)), Row(source=str(nolrc))])
+    w.embed_lrc.setChecked(True)  # 触发 toggled
+    assert w.model.rows[0].reason == "准备嵌入歌词"   # 有 .lrc
+    assert w.model.rows[1].reason == ""              # 无 .lrc
+    w.embed_lrc.setChecked(False)
+    assert w.model.rows[0].reason == ""              # 取消后清除
+
+
 def test_remove_selected_row(app):
     import gui.main_window as mw
     from gui.task_model import Row
