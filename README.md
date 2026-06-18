@@ -6,13 +6,15 @@ Convert NetEase Cloud Music `.ncm` files into audio that any player can open, wh
 
 ## Features
 
-- **Original format first**: if the NCM holds FLAC it outputs FLAC, if it holds MP3 it outputs MP3 — no re-encoding, no quality change.
-- **Safe handling of special formats**: non-standard containers (e.g. spatial audio) are exported as-is in their real format and flagged in the UI, never force-converted or turned into broken files.
-- **Batch conversion**: drag in files or folders (`.ncm` and `.mp3` are scanned recursively), processed in parallel.
-- **MP3 passthrough**: existing `.mp3` files are not re-encoded — they are placed into the output folder unchanged (renamed by your template), with the status marked "not converted". Copied by default, or moved when "delete source" is checked.
-- **Preview before converting**: the list shows the detected title / artist / album / format / cover up front.
-- **Full metadata**: title, artist, album and cover written back into FLAC / MP3.
-- **Thoughtful options**: custom naming templates, preserve source folder structure, output conflict policy (skip / overwrite / rename), optional convert-to-WAV, optional delete-source-after-success (with a first-time confirmation), light / dark theme, retry failed items, one-click open output folder.
+- **Lossless by design**: NCM is an encrypted wrapper around the original audio, not a codec. The app decrypts and writes the original stream untouched — FLAC stays FLAC, bit-for-bit identical, with no quality change.
+- **Fast & smooth**: the decryption keystream is periodic (256 bytes), so it is precomputed once and applied with a vectorized numpy XOR that releases the GIL. A 24-bit/192 kHz track decrypts in ~0.25 s, and the interface stays responsive even when converting many large files at once.
+- **Original format first**: FLAC → FLAC, MP3 → MP3 — no re-encoding.
+- **MP3 passthrough**: `.mp3` files are accepted and placed into the output unchanged (not re-encoded), copied by default or moved when "delete source" is on.
+- **Special formats handled safely**: spatial / Dolby audio is exported as-is (`.m4a`) and flagged, never force-converted into broken files.
+- **Batch & queue management**: drag in files or folders (recursive scan), a numbered list, multi-threaded conversion with per-file progress and a live spinner; remove selected items (Delete / Backspace) or clear all.
+- **Preview before converting**: title / artist / album / format / cover thumbnail shown up front.
+- **Metadata & cover**: written back into FLAC / MP3; non-RGB covers are normalized to RGB so players display them.
+- **Thoughtful options**: naming templates, preserve folder structure, conflict policy (skip / overwrite / rename), optional convert-to-WAV (auto-disabled when ffmpeg is missing), optional delete-source (with confirmation), light / dark theme, retry failed, one-click open output folder.
 
 ## Requirements & Installation
 
