@@ -32,6 +32,7 @@ def _maybe_embed_lyrics(src: str, out_path: str, fmt: str, res: "ConvertResult")
             write_lyrics(out_path, fmt, lyrics)
             res.reason = (res.reason + "；已嵌入歌词").lstrip("；") if res.reason else "已嵌入歌词"
         except Exception as e:
+            res.status = "partial"
             res.reason = (res.reason + f"；歌词写入失败：{e}").lstrip("；") if res.reason else f"歌词写入失败：{e}"
     else:
         res.reason = (res.reason + "；未找到歌词").lstrip("；") if res.reason else "未找到歌词"
@@ -142,7 +143,8 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
             elif fmt == "mp3":
                 write_mp3_tags(final, tags, content.cover)
         except Exception as e:
-            res.reason = f"已导出，但标签写入失败：{e}"
+            res.status = "partial"
+            res.reason = f"标签写入失败：{e}"
 
     if embed_lyrics and not res.special and fmt in ("flac", "mp3"):
         _maybe_embed_lyrics(src, final, fmt, res)
