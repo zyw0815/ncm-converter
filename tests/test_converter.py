@@ -1,7 +1,21 @@
 # tests/test_converter.py
 import os
+import core.converter as conv
 from tests.conftest import build_ncm
 from core.converter import convert_file
+
+
+def test_convert_partial_on_tag_failure(tmp_path, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("nope")
+    monkeypatch.setattr(conv, "write_flac_tags", boom)
+    meta = {"musicName": "x", "artist": [["a", 1]], "album": "b", "format": "flac"}
+    src = tmp_path / "s.ncm"
+    src.write_bytes(build_ncm(b"fLaC" + b"\x00" * 64, meta))
+    res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename", write_tags=True)
+    assert res.status == "partial"          # 不是「完成」
+    assert "标签写入失败" in res.reason
+    assert os.path.exists(res.output_path)  # 音频仍已导出
 
 
 def test_convert_mp3_passthrough_copies(tmp_path):

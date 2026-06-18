@@ -5,12 +5,14 @@ from PyQt6.QtCore import QAbstractTableModel, Qt, QModelIndex
 from PyQt6.QtGui import QColor, QPixmap, QIcon
 
 HEADERS = ["#", "标题", "歌手", "专辑", "格式", "状态"]
-STATUS_TEXT = {"pending": "待转", "running": "转换中", "ok": "完成", "skipped": "跳过", "failed": "失败"}
+STATUS_TEXT = {"pending": "待转", "running": "转换中", "ok": "完成",
+               "partial": "部分完成", "skipped": "跳过", "failed": "失败"}
 # 状态文字配色（深浅主题通用、对比都足够）
 STATUS_COLOR = {
     "pending": "#9aa0a6",
     "running": "#3b82f6",
     "ok": "#1aa260",
+    "partial": "#d98324",
     "skipped": "#c08a00",
     "failed": "#e05260",
 }
@@ -106,7 +108,7 @@ class QueueModel(QAbstractTableModel):
                 self.dataChanged.emit(self.index(i, status_col), self.index(i, status_col))
 
     def progress(self):
-        done = sum(1 for r in self.rows if r.status in ("ok", "skipped", "failed"))
+        done = sum(1 for r in self.rows if r.status in ("ok", "partial", "skipped", "failed"))
         return done, len(self.rows)
 
     def has_running(self):
