@@ -130,6 +130,7 @@ class MainWindow(QMainWindow):
             _sc.activated.connect(self.remove_selected)
         hdr = self.table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # 「#」序号列保持窄
         hdr.setHighlightSections(False)
         root.addWidget(self.table, 1)
 

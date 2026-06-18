@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from PyQt6.QtCore import QAbstractTableModel, Qt, QModelIndex
 from PyQt6.QtGui import QColor, QPixmap, QIcon
 
-HEADERS = ["标题", "歌手", "专辑", "格式", "状态"]
+HEADERS = ["#", "标题", "歌手", "专辑", "格式", "状态"]
 STATUS_TEXT = {"pending": "待转", "running": "转换中", "ok": "完成", "skipped": "跳过", "failed": "失败"}
 # 状态文字配色（深浅主题通用、对比都足够）
 STATUS_COLOR = {
@@ -55,20 +55,24 @@ class QueueModel(QAbstractTableModel):
         col = index.column()
         if role == Qt.ItemDataRole.DisplayRole:
             if col == 0:
-                return r.title or os.path.basename(r.source)
+                return str(index.row() + 1)
             if col == 1:
-                return r.artist
+                return r.title or os.path.basename(r.source)
             if col == 2:
-                return r.album
+                return r.artist
             if col == 3:
-                return r.fmt
+                return r.album
             if col == 4:
+                return r.fmt
+            if col == 5:
                 if r.status == "running":
                     return f"{self.spinner} 转换中"
                 return STATUS_TEXT.get(r.status, r.status) + (f"：{r.reason}" if r.reason else "")
-        if role == Qt.ItemDataRole.ForegroundRole and col == 4:
+        if role == Qt.ItemDataRole.TextAlignmentRole and col == 0:
+            return Qt.AlignmentFlag.AlignCenter
+        if role == Qt.ItemDataRole.ForegroundRole and col == 5:
             return QColor(STATUS_COLOR.get(r.status, "#9aa0a6"))
-        if role == Qt.ItemDataRole.DecorationRole and col == 0 and r.cover:
+        if role == Qt.ItemDataRole.DecorationRole and col == 1 and r.cover:
             if r.icon is None:
                 pix = QPixmap()
                 pix.loadFromData(r.cover)
@@ -96,9 +100,10 @@ class QueueModel(QAbstractTableModel):
     def advance_spinner(self):
         idx = (SPINNER_FRAMES.index(self.spinner) + 1) % len(SPINNER_FRAMES)
         self.spinner = SPINNER_FRAMES[idx]
+        status_col = len(HEADERS) - 1
         for i, r in enumerate(self.rows):
             if r.status == "running":
-                self.dataChanged.emit(self.index(i, 4), self.index(i, 4))
+                self.dataChanged.emit(self.index(i, status_col), self.index(i, status_col))
 
     def progress(self):
         done = sum(1 for r in self.rows if r.status in ("ok", "skipped", "failed"))
