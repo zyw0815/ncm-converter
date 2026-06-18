@@ -31,12 +31,25 @@ def parse_lrc(text: str) -> str:
 
 
 def read_lyrics(src: str):
-    """找到同名 .lrc 则读出并清理，返回歌词文本；否则 None。"""
+    """找到同名 .lrc 则读出并清理，返回歌词文本；否则 None。
+    多编码兜底：UTF-8(含 BOM) → GBK → UTF-8 替换，避免非 UTF-8 文件读不出。"""
     path = find_lrc(src)
     if not path:
         return None
-    try:
-        with open(path, encoding="utf-8") as f:
-            return parse_lrc(f.read())
-    except OSError:
-        return None
+    raw = None
+    for enc in ("utf-8-sig", "gbk"):
+        try:
+            with open(path, encoding=enc) as f:
+                raw = f.read()
+            break
+        except UnicodeDecodeError:
+            continue
+        except OSError:
+            return None
+    if raw is None:
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                raw = f.read()
+        except OSError:
+            return None
+    return parse_lrc(raw)

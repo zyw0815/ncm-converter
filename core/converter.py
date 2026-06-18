@@ -25,17 +25,20 @@ class ConvertResult:
 
 
 def _maybe_embed_lyrics(src: str, out_path: str, fmt: str, res: "ConvertResult") -> None:
-    """若启用嵌入歌词：找到同名 .lrc 则写入输出文件，并在状态里注明。"""
+    """若启用嵌入歌词：找到同名 .lrc 则写入输出文件（内嵌标签 + 输出旁的外挂 .lrc），并在状态里注明。"""
     lyrics = read_lyrics(src)
-    if lyrics:
-        try:
-            write_lyrics(out_path, fmt, lyrics)
-            res.reason = (res.reason + "；已嵌入歌词").lstrip("；") if res.reason else "已嵌入歌词"
-        except Exception as e:
-            res.status = "partial"
-            res.reason = (res.reason + f"；歌词写入失败：{e}").lstrip("；") if res.reason else f"歌词写入失败：{e}"
-    else:
+    if not lyrics:
         res.reason = (res.reason + "；未找到歌词").lstrip("；") if res.reason else "未找到歌词"
+        return
+    try:
+        write_lyrics(out_path, fmt, lyrics)            # 内嵌到标签
+        sidecar = os.path.splitext(out_path)[0] + ".lrc"  # 输出旁的外挂 .lrc
+        with open(sidecar, "w", encoding="utf-8") as f:
+            f.write(lyrics)
+        res.reason = (res.reason + "；已嵌入歌词").lstrip("；") if res.reason else "已嵌入歌词"
+    except Exception as e:
+        res.status = "partial"
+        res.reason = (res.reason + f"；歌词写入失败：{e}").lstrip("；") if res.reason else f"歌词写入失败：{e}"
 
 
 def _passthrough_mp3(src: str, out_dir: str, template: str, conflict: str,

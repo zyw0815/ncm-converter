@@ -180,7 +180,7 @@ class MainWindow(QMainWindow):
         self.del_src = QCheckBox("删除原文件")
         for cb, tip in (
             (self.keep_tree, "选择文件夹批量转换时，在输出目录里复刻原来的子文件夹层级。"),
-            (self.embed_lrc, "转换时在源文件同目录查找同名 .lrc 歌词，找到就嵌入输出（FLAC/MP3；WAV 不支持）。"),
+            (self.embed_lrc, "转换时在源文件同目录查找同名 .lrc：内嵌进输出（FLAC/MP3），并在输出旁再放一个同名 .lrc，方便只认外挂歌词的播放器显示。"),
             (self.to_wav, "把输出再转成 WAV（需要 ffmpeg）。WAV 兼容性强但体积大，且不含封面/标签/歌词，一般无需开启。"),
             (self.del_src, "转换成功后删除原始文件（即移动而非复制）。若同时开启「嵌入歌词」，会一并删除同名 .lrc。默认关闭；首次勾选会二次确认。"),
         ):
