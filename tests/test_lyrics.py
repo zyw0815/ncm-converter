@@ -1,5 +1,24 @@
 # tests/test_lyrics.py
+import os
 from core.lyrics import parse_lrc, find_lrc, read_lyrics
+from core.converter import convert_file
+
+
+def test_read_lyrics_gbk(tmp_path):
+    (tmp_path / "a.ncm").write_bytes(b"x")
+    (tmp_path / "a.lrc").write_bytes("[00:01.00]你好世界".encode("gbk"))
+    assert "你好世界" in read_lyrics(str(tmp_path / "a.ncm"))
+
+
+def test_embed_writes_sidecar_lrc(tmp_path):
+    src = tmp_path / "s.mp3"
+    src.write_bytes(b"\xff\xfb\x90\x00" + b"\x00" * 200)
+    (tmp_path / "s.lrc").write_text("[00:01.00]hi", encoding="utf-8")
+    res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename", embed_lyrics=True)
+    sidecar = os.path.splitext(res.output_path)[0] + ".lrc"
+    assert os.path.exists(sidecar)                       # 输出旁生成外挂 .lrc
+    assert open(sidecar, encoding="utf-8").read() == "[00:01.00]hi"
+    assert "已嵌入歌词" in res.reason
 
 
 def test_parse_lrc_cleans_json_and_keeps_timed_lines():
