@@ -4,6 +4,32 @@ from tests.conftest import build_ncm
 from core.converter import convert_file
 
 
+def test_convert_mp3_passthrough_copies(tmp_path):
+    src = tmp_path / "song.mp3"
+    src.write_bytes(b"\xff\xfb\x90\x00" + b"\x00" * 200)  # mp3-ish bytes, no tags
+    out = tmp_path / "out"
+    res = convert_file(str(src), str(out), template="{歌手} - {标题}",
+                       conflict="rename", write_tags=False)
+    assert res.status == "ok"
+    assert res.passthrough is True
+    assert res.fmt == "mp3"
+    assert "未转换" in res.reason
+    assert res.output_path.endswith(".mp3")
+    assert os.path.exists(res.output_path)
+    assert os.path.exists(str(src))            # 复制：源文件保留
+    # 无可读标签时回落到原文件名
+    assert os.path.basename(res.output_path) == "song.mp3"
+
+
+def test_convert_mp3_passthrough_conflict_skip(tmp_path):
+    src = tmp_path / "song.mp3"
+    src.write_bytes(b"\xff\xfb\x90\x00" + b"\x00" * 50)
+    out = tmp_path / "out"
+    convert_file(str(src), str(out), "{标题}", "rename", write_tags=False)
+    res = convert_file(str(src), str(out), "{标题}", "skip", write_tags=False)
+    assert res.status == "skipped"
+
+
 def test_convert_flac_outputs_file(tmp_path):
     meta = {"musicName": "夜曲", "artist": [["周杰伦", 1]], "album": "十一月", "format": "flac"}
     audio = b"fLaC" + b"\x00" * 64

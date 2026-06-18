@@ -23,7 +23,7 @@ class ConvertWorker(QRunnable):
 
     def run(self):
         res = convert_file(self.src, self.out_dir, self.template, self.conflict)
-        if res.status == "ok" and self.to_wav and not res.special:
+        if res.status == "ok" and self.to_wav and not res.special and not res.passthrough:
             original = res.output_path
             try:
                 wav = original.rsplit(".", 1)[0] + ".wav"
@@ -49,7 +49,7 @@ class ConvertWorker(QRunnable):
 
 
 from core.ncm import parse_ncm
-from core.metadata import extract_tags
+from core.metadata import extract_tags, read_audio_tags
 
 
 class PreviewSignals(QObject):
@@ -66,6 +66,10 @@ class PreviewWorker(QRunnable):
 
     def run(self):
         try:
+            if self.src.lower().endswith(".mp3"):
+                tags, cover = read_audio_tags(self.src)
+                self.signals.done.emit(self.index, tags, "mp3", cover or b"")
+                return
             with open(self.src, "rb") as f:
                 data = f.read()
             content = parse_ncm(data, decode_audio=False)

@@ -16,19 +16,19 @@ try:
 except Exception:
     APP_VERSION = ""
 
-NCM_EXT = ".ncm"
+SUPPORTED_EXT = (".ncm", ".mp3")
 CONFLICT_MAP = {"重命名": "rename", "跳过": "skip", "覆盖": "overwrite"}
 
 
-def scan_ncm(paths):
+def scan_inputs(paths):
     found = []
     for p in paths:
         if os.path.isdir(p):
             for root, _, files in os.walk(p):
                 for f in files:
-                    if f.lower().endswith(NCM_EXT):
+                    if f.lower().endswith(SUPPORTED_EXT):
                         found.append(os.path.join(root, f))
-        elif os.path.isfile(p) and p.lower().endswith(NCM_EXT):
+        elif os.path.isfile(p) and p.lower().endswith(SUPPORTED_EXT):
             found.append(p)
     return found
 
@@ -163,7 +163,7 @@ class MainWindow(QMainWindow):
         opt.addWidget(self.conflict)
         self.keep_tree = QCheckBox("保留目录结构")
         self.to_wav = QCheckBox("转 WAV")
-        self.del_src = QCheckBox("删除原 NCM")
+        self.del_src = QCheckBox("删除原文件")
         opt.addSpacing(8)
         opt.addWidget(self.keep_tree)
         opt.addWidget(self.to_wav)
@@ -200,7 +200,7 @@ class MainWindow(QMainWindow):
 
     # ---------- adding files ----------
     def add_paths(self, paths):
-        files = scan_ncm(paths)
+        files = scan_inputs(paths)
         existing = {r.source for r in self.model.rows}
         new = [f for f in files if f not in existing]
         if not new:
@@ -226,7 +226,7 @@ class MainWindow(QMainWindow):
                               album=tags.get("album", ""), fmt=fmt, cover=cover)
 
     def pick_files(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "选择 NCM 文件", "", "NCM (*.ncm)")
+        files, _ = QFileDialog.getOpenFileNames(self, "选择文件", "", "音频 (*.ncm *.mp3)")
         if files:
             self.add_paths(files)
 
@@ -260,7 +260,7 @@ class MainWindow(QMainWindow):
 
     def start(self):
         if self.del_src.isChecked() and not self.delete_confirmed:
-            r = QMessageBox.question(self, "确认", "转换成功后将删除原 NCM 文件，确定？")
+            r = QMessageBox.question(self, "确认", "转换/导出成功后将删除原文件，确定？")
             if r != QMessageBox.StandardButton.Yes:
                 return
             self.delete_confirmed = True

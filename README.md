@@ -8,7 +8,8 @@ Convert NetEase Cloud Music `.ncm` files into audio that any player can open, wh
 
 - **Original format first**: if the NCM holds FLAC it outputs FLAC, if it holds MP3 it outputs MP3 — no re-encoding, no quality change.
 - **Safe handling of special formats**: non-standard containers (e.g. spatial audio) are exported as-is in their real format and flagged in the UI, never force-converted or turned into broken files.
-- **Batch conversion**: drag in files or folders (all `.ncm` are scanned recursively), processed in parallel.
+- **Batch conversion**: drag in files or folders (`.ncm` and `.mp3` are scanned recursively), processed in parallel.
+- **MP3 passthrough**: existing `.mp3` files are not re-encoded — they are placed into the output folder unchanged (renamed by your template), with the status marked "not converted". Copied by default, or moved when "delete source" is checked.
 - **Preview before converting**: the list shows the detected title / artist / album / format / cover up front.
 - **Full metadata**: title, artist, album and cover written back into FLAC / MP3.
 - **Thoughtful options**: custom naming templates, preserve source folder structure, output conflict policy (skip / overwrite / rename), optional convert-to-WAV, optional delete-source-after-success (with a first-time confirmation), light / dark theme, retry failed items, one-click open output folder.
