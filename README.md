@@ -14,7 +14,8 @@ Convert NetEase Cloud Music `.ncm` files into audio that any player can open, wh
 - **Batch & queue management**: drag in files or folders (recursive scan), a numbered list, multi-threaded conversion with per-file progress and a live spinner; remove selected items (Delete / Backspace) or clear all.
 - **Preview before converting**: title / artist / album / format / cover thumbnail shown up front.
 - **Metadata & cover**: written back into FLAC / MP3; non-RGB covers are normalized to RGB so players display them.
-- **Thoughtful options**: naming templates, preserve folder structure, conflict policy (skip / overwrite / rename), optional convert-to-WAV (auto-disabled when ffmpeg is missing), optional delete-source (with confirmation), light / dark theme, retry failed, one-click open output folder.
+- **Lyrics**: if a same-named `.lrc` sits next to the source, it can be added to the result — as an external sidecar `.lrc` (recommended, best player compatibility) or embedded inside the file. NetEase JSON lines are cleaned, timed lines kept.
+- **Thoughtful options**: naming templates, preserve folder structure, conflict policy (overwrite / rename / skip), optional convert-to-WAV (auto-disabled when ffmpeg is missing), optional delete-source (also removes the matching `.lrc`), light / dark theme, retry failed, one-click open output folder — with a **?** help button next to each option.
 
 ## Requirements & Installation
 
