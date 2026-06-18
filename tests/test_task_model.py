@@ -22,3 +22,12 @@ def test_failed_rows():
     m.add_rows([Row(source="a.ncm"), Row(source="b.ncm")])
     m.set_status(1, "failed", "坏了")
     assert m.failed_indexes() == [1]
+
+
+def test_remove_rows():
+    m = QueueModel()
+    m.add_rows([Row(source="a.ncm"), Row(source="b.ncm"), Row(source="c.ncm")])
+    removed = m.remove_rows([0, 2])
+    assert set(removed) == {"a.ncm", "c.ncm"}
+    assert m.rowCount() == 1
+    assert m.rows[0].source == "b.ncm"

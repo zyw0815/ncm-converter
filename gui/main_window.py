@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QMessageBox, QHeaderView, QFrame, QAbstractItemView,
 )
 from PyQt6.QtCore import Qt, QThreadPool, QUrl, QTimer, QSize
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QShortcut, QKeySequence
 from gui.task_model import QueueModel, Row
 from gui.workers import ConvertWorker, PreviewWorker
 from gui import theme
@@ -121,7 +121,11 @@ class MainWindow(QMainWindow):
         self.table.verticalHeader().setDefaultSectionSize(44)
         self.table.setIconSize(QSize(34, 34))
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        for _key in (QKeySequence.StandardKey.Delete, QKeySequence(Qt.Key.Key_Backspace)):
+            _sc = QShortcut(_key, self.table)
+            _sc.activated.connect(self.remove_selected)
         hdr = self.table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         hdr.setHighlightSections(False)
@@ -182,11 +186,13 @@ class MainWindow(QMainWindow):
         self.start_btn.clicked.connect(self.start)
         self.retry_btn = QPushButton("重试失败")
         self.retry_btn.clicked.connect(self.retry_failed)
+        self.remove_btn = QPushButton("移除所选")
+        self.remove_btn.clicked.connect(self.remove_selected)
         self.clear_btn = QPushButton("清空")
         self.clear_btn.clicked.connect(self.clear)
         self.open_btn = QPushButton("打开输出目录")
         self.open_btn.clicked.connect(self.open_out)
-        for b in (self.start_btn, self.retry_btn, self.clear_btn, self.open_btn):
+        for b in (self.start_btn, self.retry_btn, self.remove_btn, self.clear_btn, self.open_btn):
             bot.addWidget(b)
         root.addLayout(bot)
 
@@ -194,7 +200,7 @@ class MainWindow(QMainWindow):
         self._controls = [
             self.btn_files, self.btn_folder, self.out_edit, self.btn_out,
             self.tmpl, self.conflict, self.keep_tree, self.to_wav, self.del_src,
-            self.start_btn, self.retry_btn, self.clear_btn, self.open_btn,
+            self.start_btn, self.retry_btn, self.remove_btn, self.clear_btn, self.open_btn,
         ]
 
         # 「转 WAV」依赖 ffmpeg：检测不到就置灰、不可勾选
@@ -315,6 +321,16 @@ class MainWindow(QMainWindow):
         done, total = self.model.progress()
         self.bar.setMaximum(total or 1)
         self.bar.setValue(done)
+
+    def remove_selected(self):
+        if self._running:  # 转换进行中不允许改动队列
+            return
+        rows = {idx.row() for idx in self.table.selectionModel().selectedRows()}
+        if not rows:
+            return
+        for src in self.model.remove_rows(rows):
+            self._base_dirs.pop(src, None)
+        self.update_progress()
 
     def clear(self):
         self.model.clear()
