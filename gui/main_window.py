@@ -10,6 +10,7 @@ from PyQt6.QtGui import QDesktopServices
 from gui.task_model import QueueModel, Row
 from gui.workers import ConvertWorker, PreviewWorker
 from gui import theme
+from core.transcode import find_ffmpeg
 
 try:
     from version import __version__ as APP_VERSION
@@ -196,6 +197,15 @@ class MainWindow(QMainWindow):
             self.start_btn, self.retry_btn, self.clear_btn, self.open_btn,
         ]
 
+        # 「转 WAV」依赖 ffmpeg：检测不到就置灰、不可勾选
+        self._ffmpeg_ok = find_ffmpeg() is not None
+        if self._ffmpeg_ok:
+            self.to_wav.setToolTip("把输出转成 WAV（需要 ffmpeg）")
+        else:
+            self.to_wav.setChecked(False)
+            self.to_wav.setEnabled(False)
+            self.to_wav.setToolTip("未检测到 ffmpeg，无法转 WAV；安装 ffmpeg 后重启即可使用")
+
         self.apply_theme()
 
     # ---------- adding files ----------
@@ -252,6 +262,8 @@ class MainWindow(QMainWindow):
     def set_busy(self, busy):
         for w in self._controls:
             w.setDisabled(busy)
+        if not busy and not self._ffmpeg_ok:
+            self.to_wav.setDisabled(True)  # ffmpeg 不可用时始终保持禁用
         self.drop.setAcceptDrops(not busy)
         if busy:
             self.spinner_timer.start()
