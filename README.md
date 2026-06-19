@@ -1,8 +1,36 @@
 **English** | [中文](README.zh-CN.md)
 
+<div align="center">
+
 # NCM Converter
 
-Convert NetEase Cloud Music `.ncm` files into audio that any player can open, while fully preserving title, artist, album and cover art. Cross-platform (macOS / Windows) with a clean graphical interface.
+**Convert NetEase Cloud Music `.ncm` files into audio any player can open — title, artist, album and cover art fully preserved.**
+
+[![Build](https://github.com/zyw0815/ncm-converter/actions/workflows/build.yml/badge.svg)](https://github.com/zyw0815/ncm-converter/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/zyw0815/ncm-converter)](https://github.com/zyw0815/ncm-converter/releases)
+[![license](https://img.shields.io/badge/license-non--commercial-blue)](#notes)
+
+[Download](#download) · [Features](#features) · [Screenshot](#screenshot) · [Build from source](#build-from-source) · [Notes](#notes)
+
+</div>
+
+---
+
+## Download
+
+Grab the latest build from the [Releases](https://github.com/zyw0815/ncm-converter/releases) page:
+
+| Platform | File | Size |
+| --- | --- | --- |
+| Windows | `NCM-Converter-windows.zip` | ~55 MB |
+| macOS (Apple Silicon) | `NCM-Converter-macos-arm64.zip` | ~32 MB |
+
+Requirements:
+
+- Windows 10 or later
+- macOS 11.0 or later (Apple Silicon)
+
+> Unzip and run — no Python install needed. macOS builds are Apple Silicon (arm64) only; Intel Mac users see "[Build from source](#build-from-source)". Optionally install [ffmpeg](https://ffmpeg.org/) to enable the "convert to WAV" feature; everything else works without it.
 
 ## Features
 
@@ -21,7 +49,9 @@ Convert NetEase Cloud Music `.ncm` files into audio that any player can open, wh
 
 ![NCM Converter](assets/screenshot.png)
 
-## Requirements & Installation
+## Build from source
+
+> Most users should just grab a packaged build from [Download](#download). This section is for running / packaging from source (e.g. Intel Macs).
 
 Requires Python 3.9+.
 
@@ -31,15 +61,13 @@ pip install -r requirements.txt
 
 Optional: install [ffmpeg](https://ffmpeg.org/) to enable the "convert to WAV" feature; everything else works without it.
 
-## Run
+Run:
 
 ```bash
 python main.py
 ```
 
-## Packaging
-
-Build with PyInstaller using the bundled spec (run on macOS for a `.app`, on Windows for an `.exe`):
+Package with PyInstaller using the bundled spec (run on macOS for a `.app`, on Windows for an `.exe`):
 
 ```bash
 pip install -r requirements-dev.txt
