@@ -6,7 +6,7 @@
 
 **Convert NetEase Cloud Music `.ncm` files into audio any player can open — title, artist, album and cover art fully preserved.**
 
-[![Build](https://github.com/zyw0815/ncm-converter/actions/workflows/build.yml/badge.svg)](https://github.com/zyw0815/ncm-converter/actions/workflows/build.yml)
+[![CI](https://github.com/zyw0815/ncm-converter/actions/workflows/ci.yml/badge.svg)](https://github.com/zyw0815/ncm-converter/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/zyw0815/ncm-converter)](https://github.com/zyw0815/ncm-converter/releases)
 [![license](https://img.shields.io/badge/license-non--commercial-blue)](#notes)
 

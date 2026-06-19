@@ -6,7 +6,7 @@
 
 **把网易云音乐下载的 `.ncm` 转成通用播放器可直接播放的无损音频,完整保留标题 / 歌手 / 专辑 / 封面。**
 
-[![Build](https://github.com/zyw0815/ncm-converter/actions/workflows/build.yml/badge.svg)](https://github.com/zyw0815/ncm-converter/actions/workflows/build.yml)
+[![CI](https://github.com/zyw0815/ncm-converter/actions/workflows/ci.yml/badge.svg)](https://github.com/zyw0815/ncm-converter/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/zyw0815/ncm-converter)](https://github.com/zyw0815/ncm-converter/releases)
 [![license](https://img.shields.io/badge/license-非商业使用-blue)](#说明)
 
