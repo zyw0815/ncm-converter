@@ -1,5 +1,5 @@
 # tests/test_registry.py
-from core.decryptors.base import DecryptResult, Decryptor, NotSupportedError
+from core.decryptors.base import DecryptResult, Decryptor
 
 
 def test_decrypt_result_defaults():
