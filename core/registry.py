@@ -1,6 +1,5 @@
 # core/registry.py
 import os
-from core.decryptors.base import Decryptor
 from core.decryptors.netease import NeteaseDecryptor
 
 # 后续阶段在此追加:QQDecryptor / KugouDecryptor / KuwoDecryptor
