@@ -12,13 +12,14 @@ from gui.workers import ConvertWorker, PreviewWorker
 from gui import theme
 from core.transcode import find_ffmpeg
 from core.lyrics import find_lrc
+from core.registry import supported_exts
 
 try:
     from version import __version__ as APP_VERSION
 except Exception:
     APP_VERSION = ""
 
-SUPPORTED_EXT = (".ncm", ".mp3", ".flac")
+SUPPORTED_EXT = supported_exts() + (".mp3", ".flac")
 CONFLICT_MAP = {"重命名": "rename", "跳过": "skip", "覆盖": "overwrite"}
 
 
