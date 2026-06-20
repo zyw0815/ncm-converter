@@ -1,5 +1,5 @@
 # tests/test_ncm_primitives.py
-from core.ncm import build_keybox, xor_audio
+from core.decryptors.netease import build_keybox, xor_audio
 
 
 def _naive_xor(key, data):

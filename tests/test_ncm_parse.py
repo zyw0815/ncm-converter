@@ -1,6 +1,6 @@
 # tests/test_ncm_parse.py
 from tests.conftest import build_ncm
-from core.ncm import parse_ncm
+from core.decryptors.netease import parse_ncm
 
 
 def test_parse_roundtrip():
@@ -24,6 +24,6 @@ def test_parse_skip_audio():
 
 def test_parse_rejects_non_ncm():
     import pytest
-    from core.ncm import NotNcmError
+    from core.decryptors.netease import NotNcmError
     with pytest.raises(NotNcmError):
         parse_ncm(b"this is not an ncm file at all")
