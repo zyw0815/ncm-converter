@@ -26,3 +26,31 @@ def test_base_decryptor_preview_defaults_to_decrypt():
     assert r.fmt == "mp3"
     assert r.metadata == {"t": 1}
     assert r.cover == b"C"
+
+
+from tests.conftest import build_ncm
+
+
+def test_netease_decrypt_roundtrip():
+    from core.decryptors.netease import NeteaseDecryptor
+    data = build_ncm(b"fLaC\x00\x01\x02audio", {"musicName": "歌", "format": "flac"}, cover=b"IMG")
+    assert NeteaseDecryptor.sniff(data) is True
+    r = NeteaseDecryptor.decrypt(data)
+    assert r.audio == b"fLaC\x00\x01\x02audio"
+    assert r.fmt == "flac"
+    assert r.metadata["musicName"] == "歌"
+    assert r.cover == b"IMG"
+
+
+def test_netease_preview_skips_audio():
+    from core.decryptors.netease import NeteaseDecryptor
+    data = build_ncm(b"fLaCaudio", {"musicName": "歌"}, cover=b"IMG")
+    r = NeteaseDecryptor.preview(data)
+    assert r.audio == b""
+    assert r.metadata["musicName"] == "歌"
+    assert r.cover == b"IMG"
+
+
+def test_netease_sniff_rejects_non_ncm():
+    from core.decryptors.netease import NeteaseDecryptor
+    assert NeteaseDecryptor.sniff(b"NOTNCM..") is False
