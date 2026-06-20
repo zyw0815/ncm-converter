@@ -155,9 +155,9 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
     if write_tags and not res.special:
         try:
             if fmt == "flac":
-                write_flac_tags(final, tags, result.cover or b"")
+                write_flac_tags(final, tags, res.cover)
             elif fmt == "mp3":
-                write_mp3_tags(final, tags, result.cover or b"")
+                write_mp3_tags(final, tags, res.cover)
         except Exception as e:
             res.status = "partial"
             res.reason = f"标签写入失败：{e}"
