@@ -3,7 +3,7 @@ import struct
 import base64
 import json
 from Crypto.Cipher import AES
-from core.ncm import CORE_KEY, META_KEY, xor_audio
+from core.decryptors.netease import CORE_KEY, META_KEY, xor_audio
 
 
 def _pad(data: bytes) -> bytes:

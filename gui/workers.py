@@ -55,7 +55,7 @@ class ConvertWorker(QRunnable):
         self.signals.finished.emit(self.index, res)
 
 
-from core.ncm import parse_ncm
+from core.registry import get_decryptor
 from core.metadata import extract_tags, read_audio_tags
 
 
@@ -81,9 +81,13 @@ class PreviewWorker(QRunnable):
                 return
             with open(self.src, "rb") as f:
                 data = f.read()
-            content = parse_ncm(data, decode_audio=False)
-            tags = extract_tags(content.metadata)
-            fmt = content.metadata.get("format", "") or "?"
-            self.signals.done.emit(self.index, tags, fmt, content.cover or b"")
+            dec = get_decryptor(self.src, data)
+            if dec is None:
+                self.signals.done.emit(self.index, {"title": "", "artists": [], "album": ""}, "?", b"")
+                return
+            result = dec.preview(data)
+            tags = extract_tags(result.metadata or {})
+            fmt = result.fmt or "?"
+            self.signals.done.emit(self.index, tags, fmt, result.cover or b"")
         except Exception:
             self.signals.done.emit(self.index, {"title": "", "artists": [], "album": ""}, "?", b"")
