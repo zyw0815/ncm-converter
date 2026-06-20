@@ -1,0 +1,143 @@
+# MusicUnlock 设计文档
+
+- 日期:2026-06-20
+- 状态:已评审待实现
+- 前身:`NCM 转换器`(见 `docs/specs/2026-06-17-ncm-converter-design.md`)
+
+## 1. 目标
+
+把现有的「NCM 转换器」扩展为多平台加密音乐解密工具,并改名为 **MusicUnlock**。在保留现有全部优点(逐比特无损、速度快、UI 不卡顿、贴心的批量/队列/歌词/封面等功能)的前提下,新增对以下加密格式的解密支持:
+
+| 平台 | 扩展名 | 状态 |
+| --- | --- | --- |
+| 网易云音乐 | `.ncm` | 已支持(迁移) |
+| QQ 音乐(旧) | `.qmc0` `.qmc3` `.qmcflac` `.qmcogg` 等 | 新增 |
+| QQ 音乐(新) | `.mflac` `.mgg` | 新增 |
+| 酷狗音乐 | `.kgm` `.vpr` | 新增 |
+| 酷我音乐 | `.kwm` | 新增 |
+
+继续支持普通 `.mp3` / `.flac` 的直通处理(不重编码)。
+
+## 2. 非目标(明确不做)
+
+- **不做虾米 `.xm`**:虾米音乐已停服,文件稀少,价值最低。
+- **不联网**:解密全程纯离线。不做在线元数据增强、不做 DRM 取密钥。理由:下载到的加密文件解密所需密钥已内嵌在文件内,离线即可解;联网帮不上解密,只会增加复杂度、隐私与稳定性风险。
+- **不破解账号绑定 DRM**:极个别需要账号会话才能取密钥的最新变体不在范围内,遇到则标「不支持」。
+- 在线元数据增强(用歌曲 ID 补全高清封面/歌词)记为**未来版本的独立可选功能**,本期不实现。
+
+## 3. 架构
+
+把现在 ncm 专用的逻辑抽象为「解密器注册表」。
+
+```
+core/
+  decryptors/
+    base.py        # 统一接口 + 数据结构
+    netease.py     # 原 ncm.py 迁移
+    qq.py          # qmc* / mflac / mgg
+    kugou.py       # kgm / vpr
+    kuwo.py        # kwm
+  registry.py      # 按扩展名/magic 选解密器
+  converter.py     # 主流程,改为调用 registry(行为不变)
+  metadata.py      # 复用,不动(读/写标签、封面归一化)
+  naming.py        # 复用
+  transcode.py     # 复用(可选转 WAV)
+  lyrics.py        # 复用(歌词内/外嵌)
+```
+
+### 3.1 统一接口
+
+```python
+@dataclass
+class DecryptResult:
+    audio: bytes              # 解密后的原始音频字节(必有)
+    fmt: str                  # 内层真实格式:flac / mp3 / ogg(必有)
+    metadata: dict | None     # 壳内自带元数据(仅 ncm 有,其余为 None)
+    cover: bytes | None       # 壳内自带封面(仅 ncm 有,其余为 None)
+
+class Decryptor:
+    exts: tuple[str, ...]                 # 支持的扩展名
+    @staticmethod
+    def sniff(data: bytes) -> bool        # 看 magic 确认格式
+    @staticmethod
+    def decrypt(data: bytes) -> DecryptResult
+```
+
+### 3.2 分派与数据流
+
+1. `registry` 按扩展名找候选解密器,用 `sniff()` 校验 magic 确认。
+2. 调 `decrypt()` 得到原始音频字节 + 内层格式。
+3. 用 magic 判断内层是 FLAC/MP3/OGG;若不是合法音频 → 标「不支持/失败」。
+4. **元数据/封面**:不论哪种格式,解密后都用现有 `read_audio_tags` 读出**音频文件自带的**标题/歌手/专辑/封面;ncm 额外有壳内元数据(更权威,优先用)。有就保留写回,缺就留空,绝不瞎编。
+5. **歌词**:沿用现状——源文件旁有同名 `.lrc` 且用户勾选时才嵌入(可选内嵌/外嵌)。
+6. 命名、冲突策略、可选转 WAV、删原文件等后续流程不变。
+
+### 3.3 兜底
+
+任何格式 magic 不认识、或解出字节非合法音频 → 返回「不支持/失败」状态,不写坏文件(沿用现有 ncm 与全景声 m4a 的处理思路)。
+
+## 4. 性能要求(硬性,贯穿全部解密器)
+
+必须继承现有 ncm 的性能特性:
+
+- **解密 = 预生成密钥流/pad,再用 numpy 向量化 XOR**;大块异或时**释放 GIL**,保证多首并发转换 UI 不卡。
+- 复用现有 `QThreadPool` + `QRunnable` worker 架构,线程数按 CPU 核数封顶。
+- **无损透传**:不勾 WAV 就绝不重编码,解出什么写什么。
+
+**诚实的差异**:ncm / QMC 静态版 / 酷狗 / 酷我 均为「位置相关 XOR」,可预生成 pad 后一次性 numpy 异或,速度同级;QQ 新版走 RC4 的分支密钥流是顺序生成(无法像 256 字节周期那样取巧),但生成本身很快,异或仍用 numpy + 释放 GIL,整体依旧快、UI 依旧顺。
+
+**验收**:大文件单首解密耗时与 ncm 同量级;并发转换多首时 UI 保持流畅(手动实测确认)。
+
+## 5. 各解密器算法要点与风险
+
+> 具体常量(各家固定密钥表、TEA 种子等)实现时对照开源参考实现 + 真实文件核对,不凭记忆。
+
+- **网易云 `.ncm`**(✅ 已实现,迁移):AES-128-ECB 解 RC4 keybox → XOR;META_KEY 解 JSON 元数据 + 封面。内层 FLAC/MP3。风险:无。
+- **QQ `.qmc*`(QMCv1)**(🟢 低):固定算法 + 固定密钥表,按字节位置变换,密钥不在文件内。内层 FLAC/MP3/OGG。
+- **QQ `.mflac/.mgg`(QMCv2)**(🟠 最复杂):密钥藏在文件尾 → 取出 → TEA 解出真密钥 → 按密钥长度选 map cipher 或 RC4 cipher 异或。EncV2 变体外包一层、需两个已公开的固定常量,大多仍可离线解。最需真实样本验证;极个别最新变体若官方再改可能暂不支持。
+- **酷狗 `.kgm/.vpr`**(🟡 中):文件头含每文件密钥,用固定掩码表 + 该密钥按位置 XOR。内层 MP3/FLAC/OGG。
+- **酷我 `.kwm`**(🟡 中):前 1024 字节为头(含资源 id/码率),音频用固定字符串派生的密钥流 XOR。内层 MP3/FLAC。
+
+## 6. GUI 改动(改动很小,多格式对用户基本透明)
+
+1. 窗口标题/品牌:`NCM 转换器` → `MusicUnlock`(版本号仍从 `version.py` 取)。
+2. `SUPPORTED_EXT` 扩展为加上 `.qmc* / .mflac / .mgg / .kgm / .vpr / .kwm`(继续含 .mp3/.flac);拖拽区与文件夹递归扫描自动跟随。
+3. 拖拽区提示文字改为「拖入加密音乐文件或 MP3/FLAC」。
+4. 列表「格式」列显示**内层真实格式**(flac/mp3/ogg);**不加「来源平台」列**(保持简洁)。
+5. `PreviewWorker` 改走 registry,预览逻辑统一。
+6. 其余功能(命名模板、冲突策略、转 WAV、删原文件、歌词内/外嵌、深浅主题、重试、? 帮助、序号列)全部不动。
+
+## 7. 测试
+
+1. **合成 fixture(进 CI)**:每个解密器配「造加密文件」辅助函数,断言解密后逐比特等于原始。XOR 类加密=解密,简单;QQ 新版需实现加密侧造样本,确保正反一致。
+2. **真实文件验证(本地,不进仓库)**:用户提供 mflac/mgg/qmc/kgm/vpr/kwm 真实样本,解密后用 md5 / ffmpeg 解码证明无损可播;**真实音乐文件不提交进仓库**(版权/隐私/体积),仅本地验证并汇报结果。
+3. **分派与边界**:registry 按扩展名/magic 选对解密器;损坏/错误文件干净地标「不支持」,不崩、不写坏文件。
+4. **GUI 扫描**:新扩展名可被拖拽/递归扫描识别(扩展 `test_scan`)。
+5. **性能**:大文件耗时与并发流畅度手动实测汇报(不做 CI 计时断言)。
+6. 现有 58 个测试保持绿;CI(`ci.yml`)在 macOS + Windows 跑全套。
+
+## 8. 改名与发布
+
+- 应用名:`MusicUnlock`;`build.spec` 的 app 名与 bundle id = **`com.zyw0815.musicunlock`**。
+- 图标:删除 `scripts/make_icon.py`;用户放 `assets/icon.png`(1024×1024),本地一次性转出 `assets/icon.icns` / `assets/icon.ico` 并提交(仓库内不留图标生成代码)。
+- README(中英文)整体重写:支持格式表、下载说明改为多平台;头部品牌/徽章结构沿用。
+- **GitHub 仓库改名**:`ncm-converter` → `MusicUnlock`。GitHub 自动重定向旧链接,README 内路径与徽章 URL 同步更新。
+- **发布物名**:`NCM-Converter-*.zip` → `MusicUnlock-*.zip`(改 `build.yml` 的 artifact 名);workflow 文件名 `build.yml`/`ci.yml` 不变,徽章不受影响。旧 Release 资源名保持历史不动。
+- **版本**:发 `v2.0.0`。
+- 设计文档置于 `docs/specs/`(沿用本项目惯例)。
+
+## 9. 落地节奏
+
+- **阶段一**:架构重构(`decryptors/` + `registry`,ncm 迁移),行为不变,测试全绿 → 一个 PR。
+- **阶段二**:QQ(`qmc*` / `mflac` / `mgg`),配真实文件验证 → 一个 PR。
+- **阶段三**:酷狗(`kgm`/`vpr`)+ 酷我(`kwm`),配真实文件验证 → 一个 PR。
+- **收尾**:改名 + README 重写 + 图标 + bundle id + 发布物名 + 发 `v2.0.0`。
+- 建一个 issue/里程碑挂总目标,各阶段 PR 引用它。
+
+## 10. 成功标准
+
+- 上述各格式真实文件均能解密为可播放的无损/原格式音频,逐比特正确(经真实文件验证的格式在 README 注明)。
+- 标题/歌手/专辑/封面尽力保留;歌词按用户选择嵌入。
+- 多首并发转换 UI 流畅,大文件耗时与现有 ncm 同量级。
+- 现有全部功能与测试不退化;CI 在 macOS + Windows 绿。
+- 应用与仓库完成更名为 MusicUnlock,`v2.0.0` 发布,macOS(arm64)+ Windows 安装包可下载。
