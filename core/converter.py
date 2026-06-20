@@ -2,8 +2,8 @@
 import os
 import shutil
 from dataclasses import dataclass, field
-from core.ncm import parse_ncm, NotNcmError
-from core.formats import detect_format, is_special
+from core.registry import get_decryptor
+from core.formats import is_special
 from core.metadata import extract_tags, read_audio_tags, write_flac_tags, write_mp3_tags, write_lyrics
 from core.naming import render_name, resolve_conflict
 from core.lyrics import read_lyrics
@@ -107,24 +107,27 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
         res.reason = f"无法读取文件：{e}"
         return res
 
-    try:
-        content = parse_ncm(data)
-    except NotNcmError:
+    dec = get_decryptor(src, data)
+    if dec is None:
         res.status = "skipped"
         res.reason = "非 NCM 文件，已跳过"
         return res
+
+    try:
+        result = dec.decrypt(data)
     except Exception as e:
         res.status = "failed"
         res.reason = f"文件损坏或格式异常：{e}"
         return res
 
-    tags = extract_tags(content.metadata)
+    metadata = result.metadata or {}
+    tags = extract_tags(metadata)
     res.title = tags["title"]
     res.artist = ", ".join(tags["artists"])
     res.album = tags["album"]
-    res.cover = content.cover
+    res.cover = result.cover or b""
 
-    fmt = detect_format(content.audio, content.metadata.get("format", ""))
+    fmt = result.fmt
     res.fmt = fmt
     res.special = is_special(fmt)
 
@@ -141,7 +144,7 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
 
     try:
         with open(final, "wb") as f:
-            f.write(content.audio)
+            f.write(result.audio)
     except OSError as e:
         res.status = "failed"
         res.reason = f"输出目录无法写入：{e}"
@@ -152,9 +155,9 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
     if write_tags and not res.special:
         try:
             if fmt == "flac":
-                write_flac_tags(final, tags, content.cover)
+                write_flac_tags(final, tags, result.cover or b"")
             elif fmt == "mp3":
-                write_mp3_tags(final, tags, content.cover)
+                write_mp3_tags(final, tags, result.cover or b"")
         except Exception as e:
             res.status = "partial"
             res.reason = f"标签写入失败：{e}"
