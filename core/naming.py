@@ -6,6 +6,7 @@ _FIELD_MAP = {"{标题}": "title", "{歌手}": "artists", "{专辑}": "album"}
 
 
 def _sanitize(name: str) -> str:
+    name = name.replace("..", "_")  # 防止路径注入
     for ch in _ILLEGAL:
         name = name.replace(ch, "_")
     return name.strip() or "untitled"
@@ -35,9 +36,8 @@ def resolve_conflict(path: str, policy: str):
         return path
     # rename: song.flac -> song (1).flac -> song (2).flac ...
     root, ext = os.path.splitext(path)
-    i = 1
-    while True:
+    for i in range(1, 1000):
         candidate = f"{root} ({i}){ext}"
         if not os.path.exists(candidate):
             return candidate
-        i += 1
+    raise OSError(f"重命名超过上限：{path}")
