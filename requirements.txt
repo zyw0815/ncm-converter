@@ -1,4 +1,4 @@
-PyQt6==6.7.1
+PyQt6==6.11.0
 mutagen==1.47.0
 pycryptodome==3.20.0
 pillow==11.3.0
