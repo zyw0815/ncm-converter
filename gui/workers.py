@@ -1,6 +1,8 @@
 import os
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
 from core.converter import convert_file
+from core.ncm import parse_ncm
+from core.metadata import extract_tags, read_audio_tags
 from core.transcode import transcode, FfmpegNotFound
 from core.lyrics import find_lrc
 
@@ -27,36 +29,32 @@ class ConvertWorker(QRunnable):
     def run(self):
         res = convert_file(self.src, self.out_dir, self.template, self.conflict,
                            embed_lyrics=self.embed_lyrics, lyrics_mode=self.lyrics_mode)
-        if res.status == "ok" and self.to_wav and not res.special and not res.passthrough:
-            original = res.output_path
-            try:
-                wav = original.rsplit(".", 1)[0] + ".wav"
-                transcode(original, wav)
-                res.output_path = wav
-                res.fmt = "wav"
-                # 转码成功后删掉中间的原始格式文件，只保留 wav
-                if os.path.abspath(wav) != os.path.abspath(original):
-                    try:
-                        os.remove(original)
-                    except OSError:
-                        pass
-            except FfmpegNotFound:
-                res.reason = "未找到 ffmpeg，已保留原始格式"
-            except Exception as e:
-                res.reason = f"转码失败，已保留原始格式：{e}"
-        if res.status == "ok" and self.delete_src:
-            # 删原文件，并连同源旁的同名 .lrc 一起删（无论是否嵌入歌词）
-            for path in (self.src, find_lrc(self.src)):
-                if path:
-                    try:
-                        os.remove(path)
-                    except OSError:
-                        pass
-        self.signals.finished.emit(self.index, res)
-
-
-from core.ncm import parse_ncm
-from core.metadata import extract_tags, read_audio_tags
+        try:
+            if res.status == "ok" and self.to_wav and not res.special and not res.passthrough:
+                original = res.output_path
+                try:
+                    wav = original.rsplit(".", 1)[0] + ".wav"
+                    transcode(original, wav)
+                    res.output_path = wav
+                    res.fmt = "wav"
+                    if os.path.abspath(wav) != os.path.abspath(original):
+                        try:
+                            os.remove(original)
+                        except OSError:
+                            pass
+                except FfmpegNotFound:
+                    res.reason = "未找到 ffmpeg，已保留原始格式"
+                except Exception as e:
+                    res.reason = f"转码失败，已保留原始格式：{e}"
+            if res.status == "ok" and self.delete_src:
+                for path in (self.src, find_lrc(self.src)):
+                    if path:
+                        try:
+                            os.remove(path)
+                        except OSError:
+                            pass
+        finally:
+            self.signals.finished.emit(self.index, res)
 
 
 class PreviewSignals(QObject):

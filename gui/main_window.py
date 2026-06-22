@@ -44,7 +44,7 @@ class DropArea(QFrame):
         self.setMinimumHeight(96)
         self.setProperty("hover", "false")
         lay = QVBoxLayout(self)
-        lay.addWidget(QLabel("把 NCM 文件或文件夹拖到这里",
+        lay.addWidget(QLabel("把 NCM / MP3 / FLAC 文件或文件夹拖到这里",
                              alignment=Qt.AlignmentFlag.AlignCenter))
 
     def _set_hover(self, on):
@@ -294,7 +294,7 @@ class MainWindow(QMainWindow):
         self._on_embed_toggled()  # 新加入的项若有歌词且已勾选嵌入，标注状态
 
     def on_preview(self, index, tags, fmt, cover):
-        if self.model.rows[index].status != "pending":
+        if index >= len(self.model.rows) or self.model.rows[index].status != "pending":
             return
         self.model.update_row(index, title=tags.get("title", ""),
                               artist=", ".join(tags.get("artists", [])),
@@ -365,6 +365,8 @@ class MainWindow(QMainWindow):
         self.update_progress()
 
     def on_finished(self, index, res):
+        if index >= len(self.model.rows):
+            return
         cur = self.model.rows[index]
         self.model.update_row(index, title=res.title or cur.title, artist=res.artist or cur.artist,
                               album=res.album or cur.album, fmt=res.fmt or cur.fmt,
