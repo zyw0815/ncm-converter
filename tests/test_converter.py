@@ -90,5 +90,5 @@ def test_convert_special_format_exported_as_is(tmp_path):
                        conflict="rename", write_tags=False)
     assert res.status == "ok"
     assert res.fmt == "m4a"
-    assert res.special is True
+    assert res.special
     assert res.output_path.endswith(".m4a")

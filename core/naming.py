@@ -6,6 +6,7 @@ _FIELD_MAP = {"{标题}": "title", "{歌手}": "artists", "{专辑}": "album"}
 
 
 def _sanitize(name: str) -> str:
+    name = name.replace("..", "_")  # 防止路径注入
     for ch in _ILLEGAL:
         name = name.replace(ch, "_")
     return name.strip() or "untitled"

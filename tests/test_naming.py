@@ -16,6 +16,13 @@ def test_render_sanitizes_illegal_chars():
     assert ":" not in name
 
 
+def test_render_sanitizes_dotdot():
+    """路径注入防护：标签含 '..' 不应生成上级目录。"""
+    tags = {"title": "../../etc/passwd", "artists": [], "album": ""}
+    name = render_name("{标题}", tags)
+    assert ".." not in name
+
+
 def test_conflict_skip(tmp_path):
     p = tmp_path / "song.flac"
     p.write_text("x")
