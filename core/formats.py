@@ -9,8 +9,11 @@ def detect_format(audio: bytes, declared: str = "") -> str:
         return "flac"
     if audio[:3] == b"ID3":
         return "mp3"
-    if len(audio) >= 2 and audio[0] == 0xFF and (audio[1] & 0xE0) == 0xE0:
-        return "mp3"
+    if len(audio) >= 4 and audio[0] == 0xFF and (audio[1] & 0xE0) == 0xE0:
+        # 额外校验 MPEG version ≠ 00、layer ≠ 00、bitrate ≠ 1111，降低误报
+        if ((audio[1] & 0x18) != 0x08 and (audio[1] & 0x06) != 0x00
+                and (audio[2] & 0xF0) != 0xF0):
+            return "mp3"
     if audio[4:8] == b"ftyp":
         return "m4a"
     declared = (declared or "").lower()

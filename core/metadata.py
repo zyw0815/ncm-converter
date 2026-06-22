@@ -1,7 +1,10 @@
 # core/metadata.py
+import logging
 from mutagen import File as MutagenFile
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, APIC, USLT, ID3NoHeaderError
+
+_log = logging.getLogger(__name__)
 
 
 def write_lyrics(path: str, fmt: str, text: str) -> None:
@@ -80,6 +83,7 @@ def normalize_cover(cover: bytes) -> bytes:
         im.convert("RGB").save(buf, format="JPEG", quality=92)
         return buf.getvalue()
     except Exception:
+        _log.warning("封面转换失败，使用原图", exc_info=True)
         return cover
 
 
@@ -150,6 +154,11 @@ def write_mp3_tags(path: str, tags: dict, cover: bytes) -> None:
         id3 = ID3(path)
     except ID3NoHeaderError:
         id3 = ID3()
+    # 先清旧标签再写入，避免重复处理时叠加帧
+    id3.delall("TIT2")
+    id3.delall("TPE1")
+    id3.delall("TALB")
+    id3.delall("APIC")
     if tags["title"]:
         id3.add(TIT2(encoding=3, text=tags["title"]))
     if tags["artists"]:
