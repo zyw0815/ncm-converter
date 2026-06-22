@@ -47,49 +47,63 @@ def _maybe_embed_lyrics(src: str, out_path: str, fmt: str, res: "ConvertResult",
         res.reason = (res.reason + f"；歌词写入失败：{e}").lstrip("；") if res.reason else f"歌词写入失败：{e}"
 
 
-def _passthrough(src: str, out_dir: str, template: str, conflict: str,
-                 embed_lyrics: bool = False, lyrics_mode: str = "sidecar") -> ConvertResult:
-    """已是可播放格式（mp3 / flac）：不转码，按命名模板原样复制到输出目录
-    （移动与否由上层 delete_src 决定）。"""
-    fmt = "flac" if src.lower().endswith(".flac") else "mp3"
-    res = ConvertResult(source=src, fmt=fmt, passthrough=True)
-    tags, cover = read_audio_tags(src)
+def _write_output(res: ConvertResult, out_dir: str, template: str,
+                  tags: dict, cover: bytes, conflict: str,
+                  embed_lyrics: bool, lyrics_mode: str) -> None:
+    """公共后处理：填充标签、确定输出路径、冲突处理、歌词嵌入。
+    调用方已完成音频写入（res.output_path 已设）。"""
     res.title = tags["title"]
     res.artist = ", ".join(tags["artists"])
     res.album = tags["album"]
     res.cover = cover
 
     os.makedirs(out_dir, exist_ok=True)
-    rel = render_name(template, tags) if tags["title"] else os.path.splitext(os.path.basename(src))[0]
-    target = os.path.join(out_dir, rel + "." + fmt)
+    rel = render_name(template, tags) if tags["title"] else os.path.splitext(os.path.basename(res.source))[0]
+    target = os.path.join(out_dir, rel + "." + res.fmt)
     os.makedirs(os.path.dirname(target), exist_ok=True)
 
     final = resolve_conflict(target, conflict)
     if final is None:
         res.status = "skipped"
         res.reason = "目标已存在，按设置跳过"
-        return res
+        return
 
-    note = f"{fmt.upper()} 原样导出（未转换）"
-    if os.path.abspath(final) == os.path.abspath(src):
-        # 源与目标同一文件，无需复制
+    # 如果调用方还没写文件（passthrough），在这里复制
+    if not res.output_path:
+        if os.path.abspath(final) == os.path.abspath(res.source):
+            res.output_path = final
+        else:
+            try:
+                shutil.copy2(res.source, final)
+            except OSError as e:
+                res.status = "failed"
+                res.reason = f"输出目录无法写入：{e}"
+                return
+            res.output_path = final
+    elif res.output_path != final:
+        # 调用方已写到临时位置，需要 rename 到最终路径
+        try:
+            os.replace(res.output_path, final)
+        except OSError as e:
+            res.status = "failed"
+            res.reason = f"重命名失败：{e}"
+            return
         res.output_path = final
-        res.reason = note
-        if embed_lyrics:
-            _maybe_embed_lyrics(src, final, fmt, res, lyrics_mode)
-        return res
 
-    try:
-        shutil.copy2(src, final)
-    except OSError as e:
-        res.status = "failed"
-        res.reason = f"输出目录无法写入：{e}"
-        return res
+    if embed_lyrics and res.fmt in ("flac", "mp3"):
+        _maybe_embed_lyrics(res.source, res.output_path, res.fmt, res, lyrics_mode)
 
-    res.output_path = final
-    res.reason = note
-    if embed_lyrics:
-        _maybe_embed_lyrics(src, final, fmt, res, lyrics_mode)
+
+def _passthrough(src: str, out_dir: str, template: str, conflict: str,
+                 embed_lyrics: bool = False, lyrics_mode: str = "sidecar") -> ConvertResult:
+    """已是可播放格式（mp3 / flac）：不转码，按命名模板原样复制到输出目录。"""
+    fmt = "flac" if src.lower().endswith(".flac") else "mp3"
+    tags, cover = read_audio_tags(src)
+    res = ConvertResult(source=src, fmt=fmt, passthrough=True)
+    res.reason = f"{fmt.upper()} 原样导出（未转换）"
+    _write_output(res, out_dir, template, tags, cover, conflict, embed_lyrics, lyrics_mode)
+    if not res.reason:
+        res.reason = f"{fmt.upper()} 原样导出（未转换）"
     return res
 
 
@@ -119,15 +133,11 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
         return res
 
     tags = extract_tags(content.metadata)
-    res.title = tags["title"]
-    res.artist = ", ".join(tags["artists"])
-    res.album = tags["album"]
-    res.cover = content.cover
-
     fmt = detect_format(content.audio, content.metadata.get("format", ""))
     res.fmt = fmt
     res.special = is_special(fmt)
 
+    # 先写音频到最终路径
     os.makedirs(out_dir, exist_ok=True)
     rel = render_name(template, tags) if tags["title"] else os.path.splitext(os.path.basename(src))[0]
     target = os.path.join(out_dir, rel + "." + fmt)
@@ -148,6 +158,10 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
         return res
 
     res.output_path = final
+    res.title = tags["title"]
+    res.artist = ", ".join(tags["artists"])
+    res.album = tags["album"]
+    res.cover = content.cover
 
     if write_tags and not res.special:
         try:
