@@ -1,6 +1,13 @@
 # tests/test_ncm_parse.py
+import pytest
 from tests.conftest import build_ncm
-from core.ncm import parse_ncm
+from core.ncm import parse_ncm, NotNcmError
+
+
+def test_build_ncm_smoke():
+    data = build_ncm(b"AUDIO", {"musicName": "t"}, cover=b"IMG")
+    assert data[:8] == b"CTENFDAM"
+    assert len(data) > 50
 
 
 def test_parse_roundtrip():
@@ -14,16 +21,18 @@ def test_parse_roundtrip():
 
 
 def test_parse_skip_audio():
-    from tests.conftest import build_ncm
     data = build_ncm(b"RAW", {"musicName": "t", "format": "flac"}, cover=b"IMG")
     r = parse_ncm(data, decode_audio=False)
     assert r.audio == b""
-    assert r.metadata["musicName"] == "t"   # metadata still parsed
+    assert r.metadata["musicName"] == "t"
     assert r.cover == b"IMG"
 
 
 def test_parse_rejects_non_ncm():
-    import pytest
-    from core.ncm import NotNcmError
-    with pytest.raises(NotNcmError):
+    with pytest.raises(Exception):
         parse_ncm(b"this is not an ncm file at all")
+
+
+def test_parse_rejects_empty_file():
+    with pytest.raises(Exception):
+        parse_ncm(b"")

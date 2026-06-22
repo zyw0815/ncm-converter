@@ -37,9 +37,3 @@ def build_ncm(audio: bytes, metadata: dict, cover: bytes = b"",
     # 音频(XOR 对称，构造=解密同一函数)
     out += xor_audio(rc4_key, audio)
     return bytes(out)
-
-
-def test_build_ncm_smoke():
-    data = build_ncm(b"AUDIO", {"musicName": "t"}, cover=b"IMG")
-    assert data[:8] == b"CTENFDAM"
-    assert len(data) > 50
