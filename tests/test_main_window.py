@@ -40,9 +40,11 @@ def test_default_conflict_is_overwrite(app):
 def test_embed_status_hint(app, tmp_path):
     import gui.main_window as mw
     from gui.task_model import Row
-    ncm = tmp_path / "song.ncm"; ncm.write_bytes(b"x")
+    ncm = tmp_path / "song.ncm"
+    ncm.write_bytes(b"x")
     (tmp_path / "song.lrc").write_text("[00:01.00]hi", encoding="utf-8")
-    nolrc = tmp_path / "other.ncm"; nolrc.write_bytes(b"x")
+    nolrc = tmp_path / "other.ncm"
+    nolrc.write_bytes(b"x")
     w = mw.MainWindow()
     w.model.add_rows([Row(source=str(ncm)), Row(source=str(nolrc))])
     w.embed_lrc.setChecked(True)  # 触发 toggled

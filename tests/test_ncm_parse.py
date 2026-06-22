@@ -1,7 +1,7 @@
 # tests/test_ncm_parse.py
 import pytest
 from tests.conftest import build_ncm
-from core.ncm import parse_ncm, NotNcmError
+from core.ncm import parse_ncm
 
 
 def test_build_ncm_smoke():

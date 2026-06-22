@@ -2,6 +2,7 @@
 import struct
 import base64
 import json
+from dataclasses import dataclass
 from Crypto.Cipher import AES
 
 CORE_KEY = bytes.fromhex("687A4852416D736F356B496E62617857")  # 'hzHRAmso5kInbaxW'
@@ -57,9 +58,6 @@ def xor_audio(rc4_key: bytes, data: bytes) -> bytes:
         block = arr[off:off + chunk]
         np.bitwise_xor(block, np.resize(pad, block.size), out=out[off:off + chunk])
     return out.tobytes()
-
-
-from dataclasses import dataclass
 
 
 class NotNcmError(ValueError):
