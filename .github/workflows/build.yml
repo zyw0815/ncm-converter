@@ -53,7 +53,7 @@ jobs:
         run: Compress-Archive -Path "dist/NCM-Converter/*" -DestinationPath "${{ matrix.artifact }}.zip"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}.zip
