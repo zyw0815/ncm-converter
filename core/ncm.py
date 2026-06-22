@@ -10,7 +10,12 @@ MAGIC = b"CTENFDAM"
 
 
 def _unpad(data: bytes) -> bytes:
-    return data[: -data[-1]]
+    if not data:
+        return data
+    n = data[-1]
+    if n == 0 or n > len(data):
+        return data
+    return data[:-n]
 
 
 def build_keybox(rc4_key: bytes) -> bytes:
@@ -69,22 +74,32 @@ class NcmContent:
     audio: bytes  # 已解密的原始音频字节
 
 
+def _read(data: bytes, offset: int, size: int, label: str) -> tuple:
+    """从 data[offset:] 读取 size 字节，数据不足时抛出明确的 NotNcmError。"""
+    if offset + size > len(data):
+        raise NotNcmError(f"文件被截断：读取 {label} 需要 {size} 字节，"
+                          f"但只剩 {len(data) - offset} 字节")
+    return data[offset:offset + size]
+
+
 def parse_ncm(data: bytes, decode_audio: bool = True) -> "NcmContent":
+    if len(data) < 10:
+        raise NotNcmError("文件太短，不是有效的 NCM 文件")
     if data[:8] != MAGIC:
         raise NotNcmError("文件头不是 CTENFDAM，非 NCM 文件")
     offset = 10  # 8 magic + 2 gap
 
-    key_len = struct.unpack("<I", data[offset:offset + 4])[0]
+    key_len = struct.unpack("<I", _read(data, offset, 4, "key_len"))[0]
     offset += 4
-    key_data = bytes(b ^ 0x64 for b in data[offset:offset + key_len])
+    key_data = bytes(b ^ 0x64 for b in _read(data, offset, key_len, "key_data"))
     offset += key_len
     key_dec = _unpad(AES.new(CORE_KEY, AES.MODE_ECB).decrypt(key_data))
     rc4_key = key_dec[17:]  # 去掉 'neteasecloudmusic'
 
-    meta_len = struct.unpack("<I", data[offset:offset + 4])[0]
+    meta_len = struct.unpack("<I", _read(data, offset, 4, "meta_len"))[0]
     offset += 4
     if meta_len:
-        meta_raw = bytes(b ^ 0x63 for b in data[offset:offset + meta_len])
+        meta_raw = bytes(b ^ 0x63 for b in _read(data, offset, meta_len, "meta_data"))
         offset += meta_len
         meta_b64 = base64.b64decode(meta_raw[22:])  # 去掉 "163 key(Don't modify):"
         meta_dec = _unpad(AES.new(META_KEY, AES.MODE_ECB).decrypt(meta_b64))
@@ -92,11 +107,13 @@ def parse_ncm(data: bytes, decode_audio: bool = True) -> "NcmContent":
     else:
         metadata = {}
 
+    _read(data, offset, 4, "crc32")  # 校验完整性，值本身不用
     offset += 4  # CRC32
+    _read(data, offset, 5, "gap")
     offset += 5  # gap
-    img_len = struct.unpack("<I", data[offset:offset + 4])[0]
+    img_len = struct.unpack("<I", _read(data, offset, 4, "img_len"))[0]
     offset += 4
-    cover = data[offset:offset + img_len]
+    cover = _read(data, offset, img_len, "cover_image")
     offset += img_len
 
     audio = xor_audio(rc4_key, data[offset:]) if decode_audio else b""

@@ -1,7 +1,10 @@
 # core/metadata.py
+import logging
 from mutagen import File as MutagenFile
 from mutagen.flac import FLAC, Picture
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, APIC, USLT, ID3NoHeaderError
+
+_log = logging.getLogger(__name__)
 
 
 def write_lyrics(path: str, fmt: str, text: str) -> None:
@@ -104,21 +107,26 @@ def read_audio_tags(path: str):
             tags["album"] = (audio.tags.get("album") or [""])[0]
     except Exception:
         pass
+
+    # 封面按格式分路读取，避免用异常做控制流
     try:
-        id3 = ID3(path)
-        for key in id3.keys():
-            if key.startswith("APIC"):
-                cover = id3[key].data
-                break
-    except Exception:
-        pass
-    if not cover:  # FLAC 封面在 picture 块里，不是 ID3
-        try:
-            pics = FLAC(path).pictures
-            if pics:
-                cover = pics[0].data
-        except Exception:
+        kind = MutagenFile(path)
+        if kind is None:
             pass
+        elif hasattr(kind, "pictures"):  # FLAC / Ogg 等
+            if kind.pictures:
+                cover = kind.pictures[0].data
+        else:  # MP3 等 ID3 格式
+            try:
+                id3 = ID3(path)
+                for key in id3.keys():
+                    if key.startswith("APIC"):
+                        cover = id3[key].data
+                        break
+            except ID3NoHeaderError:
+                pass
+    except Exception:
+        _log.warning("读取封面失败: %s", path, exc_info=True)
     return tags, cover
 
 
