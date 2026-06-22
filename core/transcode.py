@@ -8,8 +8,7 @@ class FfmpegNotFound(RuntimeError):
     pass
 
 
-# GUI 程序从 Finder / Dock 启动时不会继承 shell 的 PATH（拿不到 /opt/homebrew/bin
-# 等），导致 shutil.which 找不到 ffmpeg。这里额外探测常见安装位置作为兜底。
+# 额外探测 GUI 程序（Finder / Dock 启动）可能漏掉的常见位置
 _COMMON_DIRS = [
     "/opt/homebrew/bin",   # Apple Silicon Homebrew
     "/usr/local/bin",      # Intel Homebrew / 手动安装
@@ -19,9 +18,11 @@ _COMMON_DIRS = [
 
 
 def find_ffmpeg():
+    # 1) shutil.which 搜 PATH（含 conda env、用户自定义路径等）
     found = shutil.which("ffmpeg")
     if found:
         return found
+    # 2) 兜底：GUI 程序可能没继承 shell PATH，手动扫常见目录
     for d in _COMMON_DIRS:
         cand = os.path.join(d, "ffmpeg")
         if os.path.isfile(cand) and os.access(cand, os.X_OK):
