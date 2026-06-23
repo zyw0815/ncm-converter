@@ -1,4 +1,5 @@
 name: Build
+run-name: "Build ${{ github.ref_name }}"
 
 # 推送 v* 标签（如 v1.0.0）时自动在 macOS 与 Windows 上各自打包；
 # 也可在 Actions 页面手动触发（workflow_dispatch）。
