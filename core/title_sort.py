@@ -1,11 +1,10 @@
 import os
-import locale
 import unicodedata
+
+from pypinyin import lazy_pinyin
 
 from core.metadata import extract_tags, read_audio_tags
 from core.ncm import parse_ncm
-
-_ZH_COLLATE_LOCALE = None
 
 
 def display_title_for_sort(path: str) -> str:
@@ -98,34 +97,7 @@ def _latin_sort_key(text: str):
 
 
 def _cjk_sort_key(text: str):
-    loc = _zh_collate_locale()
-    if not loc:
-        return text
-    current = locale.setlocale(locale.LC_COLLATE)
-    try:
-        locale.setlocale(locale.LC_COLLATE, loc)
-        return locale.strxfrm(text)
-    finally:
-        locale.setlocale(locale.LC_COLLATE, current)
-
-
-def _zh_collate_locale():
-    global _ZH_COLLATE_LOCALE
-    if _ZH_COLLATE_LOCALE is not None:
-        return _ZH_COLLATE_LOCALE
-
-    current = locale.setlocale(locale.LC_COLLATE)
-    for loc in ("zh_CN.UTF-8", "zh_CN", "Chinese_China.936"):
-        try:
-            locale.setlocale(locale.LC_COLLATE, loc)
-            _ZH_COLLATE_LOCALE = loc
-            break
-        except locale.Error:
-            continue
-    else:
-        _ZH_COLLATE_LOCALE = ""
-    locale.setlocale(locale.LC_COLLATE, current)
-    return _ZH_COLLATE_LOCALE
+    return tuple(lazy_pinyin(text))
 
 
 def _is_latin(ch: str) -> bool:
