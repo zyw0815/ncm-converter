@@ -47,6 +47,20 @@ def test_sorted_import_paths_uses_ncm_title(tmp_path):
     ]
 
 
+def test_filename_fallback_sorts_by_title_after_artist_separator(tmp_path):
+    first = tmp_path / "周杰伦 - 爱在西元前.ncm"
+    second = tmp_path / "林俊杰 - 江南.ncm"
+    third = tmp_path / "Aimer - Brave Shine.ncm"
+    for path in (first, second, third):
+        path.write_bytes(b"not a valid ncm")
+
+    assert sorted_import_paths([str(second), str(first), str(third)]) == [
+        str(third),
+        str(first),
+        str(second),
+    ]
+
+
 def test_chinese_titles_sort_by_pinyin_when_locale_is_available():
     titles = ["中年", "我记得", "爱你", "白月光", "陈年", "啊哈"]
 

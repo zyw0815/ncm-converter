@@ -23,7 +23,17 @@ def display_title_for_sort(path: str) -> str:
             title = ""
     except Exception:
         title = ""
-    return title.strip() or os.path.splitext(os.path.basename(path))[0]
+    return title.strip() or _filename_title_for_sort(path)
+
+
+def _filename_title_for_sort(path: str) -> str:
+    stem = os.path.splitext(os.path.basename(path))[0].strip()
+    if " - " in stem:
+        _artist, title = stem.split(" - ", 1)
+        title = title.strip()
+        if title:
+            return title
+    return stem
 
 
 def title_sort_key(title: str):
