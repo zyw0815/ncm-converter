@@ -4,27 +4,31 @@ from tests.conftest import build_ncm
 
 def test_title_sort_category_order():
     titles = [
-        "我记得",
+        "中年",
         "あさひ",
         "†KRUSHDAFIGHT!†",
         "Умри если меня не любишь",
-        "Bad Guy",
+        "bad guy",
+        "Apple",
         "17",
         "#Lov3",
         "【FREE】lucky",
         "'Resident Evil",
+        "爱你",
     ]
 
     assert sorted(titles, key=title_sort_key) == [
         "#Lov3",
         "'Resident Evil",
         "17",
-        "Bad Guy",
-        "Умри если меня не любишь",
+        "Apple",
+        "bad guy",
         "†KRUSHDAFIGHT!†",
         "【FREE】lucky",
         "あさひ",
-        "我记得",
+        "Умри если меня не любишь",
+        "爱你",
+        "中年",
     ]
 
 
@@ -40,4 +44,17 @@ def test_sorted_import_paths_uses_ncm_title(tmp_path):
         str(symbol),
         str(latin),
         str(chinese),
+    ]
+
+
+def test_chinese_titles_sort_by_pinyin_when_locale_is_available():
+    titles = ["中年", "我记得", "爱你", "白月光", "陈年", "啊哈"]
+
+    assert sorted(titles, key=title_sort_key) == [
+        "啊哈",
+        "爱你",
+        "白月光",
+        "陈年",
+        "我记得",
+        "中年",
     ]
