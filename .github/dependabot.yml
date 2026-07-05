@@ -4,8 +4,36 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
+    groups:
+      runtime-dependencies:
+        patterns:
+          - "*"
+        dependency-type: production
+      development-dependencies:
+        patterns:
+          - "*"
+        dependency-type: development
+    ignore:
+      # The app currently supports Python 3.9. These newer ranges require
+      # Python 3.10+ or 3.12+ and create CI noise.
+      - dependency-name: mutagen
+        versions:
+          - ">= 1.48.0"
+      - dependency-name: numpy
+        versions:
+          - ">= 2.1.0"
+      - dependency-name: pillow
+        versions:
+          - ">= 12.0.0"
+      - dependency-name: PyQt6
+        versions:
+          - ">= 6.11.0"
+      - dependency-name: pytest
+        versions:
+          - ">= 9.0.0"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: monthly
+    open-pull-requests-limit: 2

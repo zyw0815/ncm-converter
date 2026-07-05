@@ -48,6 +48,9 @@ desktop.ini
 # 在 .gitignore 中列出它们，从源头挡住，不让其被提交
 .claude/
 CLAUDE.md
+.codex/
+AGENTS.md
+.reasonix/
 **/superpowers/
 .cursor/
 .aider*
