@@ -12,6 +12,7 @@ from gui.workers import ConvertWorker, PreviewWorker
 from gui import theme
 from core.transcode import find_ffmpeg
 from core.lyrics import find_lrc
+from core.title_sort import sorted_import_paths
 
 try:
     from version import __version__ as APP_VERSION
@@ -276,7 +277,7 @@ class MainWindow(QMainWindow):
     def add_paths(self, paths):
         files = scan_inputs(paths)
         existing = {r.source for r in self.model.rows}
-        new = [f for f in files if f not in existing]
+        new = sorted_import_paths([f for f in files if f not in existing])
         if not new:
             return
         start = self.model.rowCount()
