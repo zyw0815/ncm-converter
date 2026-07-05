@@ -86,8 +86,14 @@ def _group_sort_text(group: int, text: str):
 
 
 def _latin_sort_key(text: str):
-    first = _first_significant_char(text)
-    case_rank = 0 if first.isupper() else 1
+    letters = [ch for ch in text if _is_latin(ch) and ch.isalpha()]
+    first = letters[0] if letters else _first_significant_char(text)
+    if letters and all(ch.isupper() for ch in letters):
+        case_rank = 0
+    elif first.isupper():
+        case_rank = 1
+    else:
+        case_rank = 2
     return (case_rank, text.casefold(), text)
 
 

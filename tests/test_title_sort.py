@@ -47,6 +47,18 @@ def test_sorted_import_paths_uses_ncm_title(tmp_path):
     ]
 
 
+def test_latin_titles_sort_all_caps_before_title_case_before_lowercase():
+    titles = ["Apple", "bad guy", "LOVE", "Bad Guy", "ALIVE"]
+
+    assert sorted(titles, key=title_sort_key) == [
+        "ALIVE",
+        "LOVE",
+        "Apple",
+        "Bad Guy",
+        "bad guy",
+    ]
+
+
 def test_filename_fallback_sorts_by_title_after_artist_separator(tmp_path):
     first = tmp_path / "周杰伦 - 爱在西元前.ncm"
     second = tmp_path / "林俊杰 - 江南.ncm"
