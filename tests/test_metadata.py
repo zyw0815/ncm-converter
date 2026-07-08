@@ -50,6 +50,19 @@ def test_normalize_rgb_cover_unchanged():
     assert normalize_cover(rgb) is rgb                   # 已是 RGB：原样返回，不重压
 
 
+def test_normalize_rgb_png_cover_to_jpeg():
+    import io
+    from PIL import Image
+    from core.metadata import image_info, normalize_cover
+    buf = io.BytesIO()
+    Image.new("RGB", (12, 10), (10, 20, 30)).save(buf, format="PNG")
+
+    out = normalize_cover(buf.getvalue())
+
+    assert Image.open(io.BytesIO(out)).format == "JPEG"
+    assert image_info(out) == ("image/jpeg", 12, 10, 24)
+
+
 def test_extract_full():
     meta = {"musicName": "夜曲", "artist": [["周杰伦", 1], ["方文山", 2]], "album": "十一月的萧邦"}
     tags = extract_tags(meta)

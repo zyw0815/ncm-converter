@@ -68,16 +68,15 @@ def image_info(data: bytes):
 
 
 def normalize_cover(cover: bytes) -> bytes:
-    """把非 RGB 的封面（灰度/CMYK/调色板/带透明）统一转成 RGB JPEG，
-    保证各播放器都能显示。已是 RGB 的原样返回（不重压、不掉质）。
-    无法处理（缺 Pillow 或非图片）时原样返回。"""
+    """把封面统一成 RGB JPEG，保证 MIME、宽高、位深与图片内容一致。
+    已是 RGB JPEG 的原样返回；无法处理时原样返回。"""
     if not cover:
         return cover
     try:
         import io
         from PIL import Image
         im = Image.open(io.BytesIO(cover))
-        if im.mode == "RGB":
+        if im.format == "JPEG" and im.mode == "RGB":
             return cover
         buf = io.BytesIO()
         im.convert("RGB").save(buf, format="JPEG", quality=92)
