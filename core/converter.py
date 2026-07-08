@@ -95,6 +95,7 @@ def _write_output(res: ConvertResult, out_dir: str, template: str,
 
 
 def _passthrough(src: str, out_dir: str, template: str, conflict: str,
+                 write_tags: bool = True,
                  embed_lyrics: bool = False, lyrics_mode: str = "sidecar") -> ConvertResult:
     """已是可播放格式（mp3 / flac）：不转码，按命名模板原样复制到输出目录。"""
     fmt = "flac" if src.lower().endswith(".flac") else "mp3"
@@ -102,6 +103,15 @@ def _passthrough(src: str, out_dir: str, template: str, conflict: str,
     res = ConvertResult(source=src, fmt=fmt, passthrough=True)
     res.reason = f"{fmt.upper()} 原样导出（未转换）"
     _write_output(res, out_dir, template, tags, cover, conflict, embed_lyrics, lyrics_mode)
+    if res.status == "ok" and write_tags:
+        try:
+            if fmt == "flac":
+                write_flac_tags(res.output_path, tags, cover)
+            else:
+                write_mp3_tags(res.output_path, tags, cover)
+        except Exception as e:
+            res.status = "partial"
+            res.reason = (res.reason + f"；标签写入失败：{e}").lstrip("；")
     if not res.reason:
         res.reason = f"{fmt.upper()} 原样导出（未转换）"
     return res
@@ -111,7 +121,7 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
                  write_tags: bool = True, embed_lyrics: bool = False,
                  lyrics_mode: str = "sidecar") -> ConvertResult:
     if src.lower().endswith((".mp3", ".flac")):
-        return _passthrough(src, out_dir, template, conflict, embed_lyrics, lyrics_mode)
+        return _passthrough(src, out_dir, template, conflict, write_tags, embed_lyrics, lyrics_mode)
     res = ConvertResult(source=src)
     try:
         with open(src, "rb") as f:
