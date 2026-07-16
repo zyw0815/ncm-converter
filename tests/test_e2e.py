@@ -2,10 +2,18 @@
 import shutil
 import subprocess
 import pytest
+import io
 from tests.conftest import build_ncm
 from core.converter import convert_file
-from mutagen.id3 import ID3
-from mutagen.flac import FLAC
+from mutagen.id3 import ID3, TIT2, TPE1, TALB, APIC
+from mutagen.flac import FLAC, Picture
+from PIL import Image
+
+
+def _png_cover(mode="RGBA"):
+    buf = io.BytesIO()
+    Image.new(mode, (16, 12), (10, 20, 30, 255) if mode == "RGBA" else (10, 20, 30)).save(buf, format="PNG")
+    return buf.getvalue()
 
 
 def test_e2e_mp3_metadata_and_cover(tmp_path):
@@ -60,3 +68,60 @@ def test_e2e_flac_metadata_and_cover(tmp_path):
     assert f["artist"][0] == "A"
     assert f["album"][0] == "AL"
     assert f.pictures and f.pictures[0].data == cover
+
+
+@pytest.mark.skipif(not _have_ffmpeg(), reason="需要 ffmpeg 生成 flac 测试样本")
+def test_passthrough_flac_normalizes_existing_cover(tmp_path):
+    src = tmp_path / "src.flac"
+    subprocess.run(
+        ["ffmpeg", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", "0.1", str(src)],
+        check=True, capture_output=True,
+    )
+    flac = FLAC(src)
+    flac["title"] = "T"
+    flac["artist"] = "A"
+    flac["album"] = "AL"
+    pic = Picture()
+    pic.type = 3
+    pic.mime = "image/jpeg"
+    pic.width = 0
+    pic.height = 0
+    pic.depth = 0
+    pic.data = _png_cover()
+    flac.add_picture(pic)
+    flac.save()
+
+    res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename", write_tags=True)
+
+    assert res.status == "ok"
+    out = FLAC(res.output_path)
+    assert out["title"][0] == "T"
+    assert out.pictures
+    fixed = out.pictures[0]
+    assert fixed.mime == "image/jpeg"
+    assert (fixed.width, fixed.height, fixed.depth) == (16, 12, 24)
+    assert Image.open(io.BytesIO(fixed.data)).format == "JPEG"
+
+
+@pytest.mark.skipif(not _have_ffmpeg(), reason="需要 ffmpeg 生成 mp3 测试样本")
+def test_passthrough_mp3_normalizes_existing_cover(tmp_path):
+    src = tmp_path / "src.mp3"
+    subprocess.run(
+        ["ffmpeg", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", "0.1", str(src)],
+        check=True, capture_output=True,
+    )
+    id3 = ID3(src)
+    id3.add(TIT2(encoding=3, text="T"))
+    id3.add(TPE1(encoding=3, text="A"))
+    id3.add(TALB(encoding=3, text="AL"))
+    id3.add(APIC(encoding=3, mime="image/jpg", type=3, desc="Cover", data=_png_cover("RGB")))
+    id3.save(src)
+
+    res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename", write_tags=True)
+
+    assert res.status == "ok"
+    out = ID3(res.output_path)
+    assert out["TIT2"].text[0] == "T"
+    apic = out.getall("APIC")[0]
+    assert apic.mime == "image/jpeg"
+    assert Image.open(io.BytesIO(apic.data)).format == "JPEG"
