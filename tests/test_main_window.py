@@ -1,9 +1,9 @@
 # tests/test_main_window.py
 import os
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")  # noqa: E402
 
-import pytest
-from PyQt6.QtWidgets import QApplication
+import pytest  # noqa: E402
+from PyQt6.QtWidgets import QApplication  # noqa: E402
 
 
 @pytest.fixture(scope="module")
