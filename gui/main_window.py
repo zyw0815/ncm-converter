@@ -8,10 +8,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThreadPool, QUrl, QTimer, QSize
 from PyQt6.QtGui import QDesktopServices, QShortcut, QKeySequence, QCursor
 from gui.task_model import QueueModel, Row
-from gui.workers import ConvertWorker, PreviewWorker
+from gui.workers import ConvertWorker, PreviewWorker, LyricsDownloadWorker
 from gui import theme
 from core.transcode import find_ffmpeg
 from core.lyrics import find_lrc
+from core.online_lyrics import lyrics_download_dir
 from core.title_sort import sorted_import_paths
 
 try:
@@ -70,7 +71,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"NCM 转换器 v{APP_VERSION}" if APP_VERSION else "NCM 转换器")
-        self.resize(960, 660)
+        self.resize(1020, 740)
         self.pool = QThreadPool.globalInstance()
         # 限制并发数：避免占满 CPU、给界面线程留出余量（解密本身已大幅提速）
         self.pool.setMaxThreadCount(min(4, os.cpu_count() or 4))
@@ -79,6 +80,7 @@ class MainWindow(QMainWindow):
         self.delete_confirmed = False
         self._base_dirs = {}
         self._running = 0
+        self._lyrics_worker = None
 
         self.spinner_timer = QTimer(self)
         self.spinner_timer.setInterval(95)
@@ -149,6 +151,41 @@ class MainWindow(QMainWindow):
         outrow.addWidget(self.btn_out)
         root.addLayout(outrow)
 
+        # ---- independent song / public-playlist lyric download ----
+        lyrics_row = QHBoxLayout()
+        lyrics_row.setSpacing(8)
+        lyrics_label = QLabel("下载歌词")
+        lyrics_label.setObjectName("FieldLabel")
+        lyrics_row.addWidget(lyrics_label)
+        self.lyrics_kind = QComboBox()
+        self.lyrics_kind.addItem("歌曲", "song")
+        self.lyrics_kind.addItem("公开歌单", "playlist")
+        lyrics_row.addWidget(self.lyrics_kind)
+        self.lyrics_input = QLineEdit()
+        self.lyrics_input.setPlaceholderText("输入歌曲／歌单 ID 或网易云分享网址")
+        self.lyrics_input.returnPressed.connect(self.start_lyrics_download)
+        lyrics_row.addWidget(self.lyrics_input, 1)
+        self.lyrics_download_btn = QPushButton("下载 LRC")
+        self.lyrics_download_btn.clicked.connect(self.start_lyrics_download)
+        lyrics_row.addWidget(self.lyrics_download_btn)
+        self.lyrics_cancel_btn = QPushButton("取消")
+        self.lyrics_cancel_btn.setEnabled(False)
+        self.lyrics_cancel_btn.clicked.connect(self.cancel_lyrics_download)
+        lyrics_row.addWidget(self.lyrics_cancel_btn)
+        root.addLayout(lyrics_row)
+        self.lyrics_location = QLabel(
+            f"独立下载目录：{lyrics_download_dir()}（下载时自动创建，与音频输出目录无关）"
+        )
+        self.lyrics_location.setWordWrap(True)
+        root.addWidget(self.lyrics_location)
+        self.lyrics_status = QLabel("已有文件会跳过；转换歌曲默认内嵌歌词，选择外嵌时 .lrc 保存在音频旁")
+        self.lyrics_status.setWordWrap(True)
+        root.addWidget(self.lyrics_status)
+        self.lyrics_bar = QProgressBar()
+        self.lyrics_bar.setMaximum(1)
+        self.lyrics_bar.setValue(0)
+        root.addWidget(self.lyrics_bar)
+
         # ---- naming + conflict on one compact row ----
         cfgrow = QHBoxLayout()
         cfgrow.setSpacing(8)
@@ -176,11 +213,13 @@ class MainWindow(QMainWindow):
         opt = QHBoxLayout()
         opt.setSpacing(6)
         self.keep_tree = QCheckBox("保留目录结构")
-        self.embed_lrc = QCheckBox("嵌入歌词")
+        self.embed_lrc = QCheckBox("添加歌词")
+        self.embed_lrc.setChecked(True)
         self.lyrics_mode = QComboBox()
-        self.lyrics_mode.addItems(["外嵌（推荐）", "内嵌"])
+        self.lyrics_mode.addItem("内嵌（默认）", "embed")
+        self.lyrics_mode.addItem("外嵌 (.lrc)", "sidecar")
         self.lyrics_mode.setMinimumWidth(120)
-        self.lyrics_mode.setEnabled(False)
+        self.lyrics_mode.setEnabled(True)
         self.to_wav = QCheckBox("转 WAV")
         self.del_src = QCheckBox("删除原文件")
 
@@ -195,12 +234,13 @@ class MainWindow(QMainWindow):
 
         add_item(self.keep_tree, "选择文件夹批量转换时，在输出目录里复刻原来的子文件夹层级。")
         add_item(self.embed_lrc,
-                 "把源文件同目录的同名 .lrc 歌词加入结果（WAV 不支持）。\n"
-                 "· 外嵌（推荐）：在输出旁生成 .lrc 文件，兼容性好，几乎所有播放器都能显示。\n"
-                 "· 内嵌：写进音频文件内部，单文件更整洁，但不少播放器不读、可能不显示。\n"
-                 "若只想要单个文件又不在意歌词，建议直接不勾「嵌入歌词」。",
+                 "默认把歌词写入转换后的 MP3/FLAC 文件；优先使用源文件旁的同名 .lrc，"
+                 "没有时按 NCM 歌曲 ID 在线获取。\n"
+                 "· 内嵌：写进音频文件标签；部分播放器可能不显示。\n"
+                 "· 外嵌：在输出音频旁生成同名 .lrc。\n"
+                 "转 WAV 时无法内嵌，会自动改为同名外嵌 .lrc。取消勾选则不添加歌词。",
                  extra=self.lyrics_mode)
-        add_item(self.to_wav, "把输出再转成 WAV（需要 ffmpeg）。WAV 兼容性强但体积大，且不含封面/标签/歌词，一般无需开启。")
+        add_item(self.to_wav, "把输出再转成 WAV（需要 ffmpeg）。WAV 不支持内嵌歌词；启用歌词时会在 WAV 旁生成同名 .lrc。")
         add_item(self.del_src, "转换成功后删除原始文件，并连同源文件旁的同名 .lrc 一起删除。默认关闭；首次勾选会二次确认。")
         opt.addStretch()
         root.addLayout(opt)
@@ -231,6 +271,7 @@ class MainWindow(QMainWindow):
         # 转换时需要禁用的控件（主题切换不在内，转换中也能切）
         self._controls = [
             self.btn_files, self.btn_folder, self.out_edit, self.btn_out,
+            self.lyrics_kind, self.lyrics_input, self.lyrics_download_btn,
             self.tmpl, self.conflict, self.keep_tree, self.embed_lrc, self.lyrics_mode,
             self.to_wav, self.del_src,
             self.start_btn, self.retry_btn, self.remove_btn, self.clear_btn, self.open_btn,
@@ -250,7 +291,7 @@ class MainWindow(QMainWindow):
         self.apply_theme()
 
     def _on_embed_toggled(self, checked=None):
-        """勾选「嵌入歌词」后，给有同名 .lrc 的待转项在状态里标注「准备嵌入歌词」。"""
+        """启用歌词后，给有同名 .lrc 的待转项标注准备状态。"""
         if checked is None:
             checked = self.embed_lrc.isChecked()
         self.lyrics_mode.setEnabled(checked)  # 外嵌/内嵌选择仅在勾选嵌入歌词时可用
@@ -258,9 +299,9 @@ class MainWindow(QMainWindow):
             if r.status != "pending":
                 continue
             if checked and find_lrc(r.source):
-                if r.reason != "准备嵌入歌词":
-                    self.model.update_row(i, reason="准备嵌入歌词")
-            elif r.reason == "准备嵌入歌词":
+                if r.reason != "准备添加歌词":
+                    self.model.update_row(i, reason="准备添加歌词")
+            elif r.reason == "准备添加歌词":
                 self.model.update_row(i, reason="")
 
     def _help(self, text):
@@ -316,6 +357,52 @@ class MainWindow(QMainWindow):
         if d:
             self.out_edit.setText(d)
 
+    # ---------- standalone lyrics ----------
+    def start_lyrics_download(self):
+        if self._lyrics_worker or self._running:
+            return
+        value = self.lyrics_input.text().strip()
+        if not value:
+            self.lyrics_status.setText("请先输入歌曲／歌单 ID 或网址")
+            return
+        self.lyrics_bar.setMaximum(1)
+        self.lyrics_bar.setValue(0)
+        self.lyrics_status.setText("正在查询歌曲列表…")
+        self.lyrics_status.setToolTip("")
+        self._lyrics_worker = LyricsDownloadWorker(
+            self.lyrics_kind.currentData(), value, lyrics_download_dir()
+        )
+        self._lyrics_worker.signals.progress.connect(self.on_lyrics_progress)
+        self._lyrics_worker.signals.finished.connect(self.on_lyrics_finished)
+        self.set_busy(True)
+        self.lyrics_cancel_btn.setEnabled(True)
+        self.pool.start(self._lyrics_worker)
+
+    def cancel_lyrics_download(self):
+        if self._lyrics_worker:
+            self._lyrics_worker.cancel()
+            self.lyrics_cancel_btn.setEnabled(False)
+            self.lyrics_status.setText("正在取消歌词下载…")
+
+    def on_lyrics_progress(self, done, total, status):
+        self.lyrics_bar.setMaximum(total or 1)
+        self.lyrics_bar.setValue(done)
+        self.lyrics_status.setText(f"歌词 {done}/{total}：{status}")
+
+    def on_lyrics_finished(self, summary, error):
+        self._lyrics_worker = None
+        self.lyrics_cancel_btn.setEnabled(False)
+        self.set_busy(False)
+        if error:
+            self.lyrics_status.setText(f"歌词下载失败：{error}")
+            return
+        state = "已取消" if summary.cancelled else "已完成"
+        self.lyrics_status.setText(
+            f"{state}：保存 {summary.saved}，已有 {summary.skipped}，"
+            f"无歌词 {summary.missing}，失败 {summary.failed}"
+        )
+        self.lyrics_status.setToolTip("\n".join(summary.errors))
+
     # ---------- conversion ----------
     def _out_dir_for(self, src):
         out = self.out_edit.text().strip()
@@ -356,7 +443,7 @@ class MainWindow(QMainWindow):
             self.model.set_status(i, "running")
             self._running += 1
             src = self.model.rows[i].source
-            lyrics_mode = "embed" if self.lyrics_mode.currentText() == "内嵌" else "sidecar"
+            lyrics_mode = self.lyrics_mode.currentData()
             w = ConvertWorker(i, src, self._out_dir_for(src), self.tmpl.currentText(),
                               CONFLICT_MAP[self.conflict.currentText()],
                               to_wav=self.to_wav.isChecked(), delete_src=self.del_src.isChecked(),

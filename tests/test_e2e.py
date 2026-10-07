@@ -71,6 +71,24 @@ def test_e2e_flac_metadata_and_cover(tmp_path):
 
 
 @pytest.mark.skipif(not _have_ffmpeg(), reason="需要 ffmpeg 生成 flac 测试样本")
+def test_ncm_flac_embeds_local_lyrics(tmp_path):
+    flac_src = tmp_path / "src.flac"
+    subprocess.run(
+        ["ffmpeg", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono", "-t", "0.1", str(flac_src)],
+        check=True, capture_output=True,
+    )
+    src = tmp_path / "song.ncm"
+    src.write_bytes(build_ncm(flac_src.read_bytes(), {"musicName": "Song", "format": "flac"}))
+    (tmp_path / "song.lrc").write_text("[00:01.00]local", encoding="utf-8")
+
+    result = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename", embed_lyrics=True)
+
+    assert result.status == "ok"
+    assert FLAC(result.output_path)["LYRICS"] == ["[00:01.00]local"]
+    assert not (tmp_path / "out" / "Song.lrc").exists()
+
+
+@pytest.mark.skipif(not _have_ffmpeg(), reason="需要 ffmpeg 生成 flac 测试样本")
 def test_passthrough_flac_normalizes_existing_cover(tmp_path):
     src = tmp_path / "src.flac"
     subprocess.run(

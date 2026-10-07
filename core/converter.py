@@ -7,6 +7,7 @@ from core.formats import detect_format, is_special
 from core.metadata import extract_tags, read_audio_tags, write_flac_tags, write_mp3_tags, write_lyrics
 from core.naming import render_name, resolve_conflict
 from core.lyrics import read_lyrics
+from core.online_lyrics import NeteaseLyricsClient
 
 
 @dataclass
@@ -25,12 +26,19 @@ class ConvertResult:
 
 
 def _maybe_embed_lyrics(src: str, out_path: str, fmt: str, res: "ConvertResult",
-                        mode: str = "sidecar") -> None:
-    """启用嵌入歌词：找到同名 .lrc 后，按 mode 处理并在状态里注明。
+                        mode: str = "embed", song_id=None) -> None:
+    """先用同名 .lrc；NCM 有歌曲 ID 时在线补全缺失歌词。
     mode='sidecar' 在输出旁生成同名 .lrc（外挂，兼容性好）；mode='embed' 写进音频标签（内嵌）。"""
     lyrics = read_lyrics(src)
+    lookup_error = ""
+    if not lyrics and str(song_id or "").isdecimal() and int(song_id) > 0:
+        try:
+            lyrics = NeteaseLyricsClient().song_lyrics(int(song_id))
+        except Exception as exc:
+            lookup_error = f"在线歌词获取失败：{exc}"
     if not lyrics:
-        res.reason = (res.reason + "；未找到歌词").lstrip("；") if res.reason else "未找到歌词"
+        note = lookup_error or "未找到歌词"
+        res.reason = (res.reason + "；" + note).lstrip("；")
         return
     try:
         if mode == "embed":
@@ -96,7 +104,7 @@ def _write_output(res: ConvertResult, out_dir: str, template: str,
 
 def _passthrough(src: str, out_dir: str, template: str, conflict: str,
                  write_tags: bool = True,
-                 embed_lyrics: bool = False, lyrics_mode: str = "sidecar") -> ConvertResult:
+                 embed_lyrics: bool = False, lyrics_mode: str = "embed") -> ConvertResult:
     """已是可播放格式（mp3 / flac）：不转码，按命名模板原样复制到输出目录。"""
     fmt = "flac" if src.lower().endswith(".flac") else "mp3"
     tags, cover = read_audio_tags(src)
@@ -119,7 +127,7 @@ def _passthrough(src: str, out_dir: str, template: str, conflict: str,
 
 def convert_file(src: str, out_dir: str, template: str, conflict: str,
                  write_tags: bool = True, embed_lyrics: bool = False,
-                 lyrics_mode: str = "sidecar") -> ConvertResult:
+                 lyrics_mode: str = "embed") -> ConvertResult:
     if src.lower().endswith((".mp3", ".flac")):
         return _passthrough(src, out_dir, template, conflict, write_tags, embed_lyrics, lyrics_mode)
     res = ConvertResult(source=src)
@@ -184,7 +192,8 @@ def convert_file(src: str, out_dir: str, template: str, conflict: str,
             res.reason = f"标签写入失败：{e}"
 
     if embed_lyrics and not res.special and fmt in ("flac", "mp3"):
-        _maybe_embed_lyrics(src, final, fmt, res, lyrics_mode)
+        _maybe_embed_lyrics(src, final, fmt, res, lyrics_mode,
+                            content.metadata.get("musicId"))
 
     if res.special and not res.reason:
         res.reason = "特殊格式（如全景声），已原样导出"

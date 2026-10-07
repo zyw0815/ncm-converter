@@ -17,9 +17,10 @@ def _mk(tmp_path):
     return src
 
 
-def test_lyrics_mode_sidecar_default(tmp_path):
+def test_lyrics_mode_sidecar_opt_in(tmp_path):
     src = _mk(tmp_path)
-    res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename", embed_lyrics=True)
+    res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename",
+                       embed_lyrics=True, lyrics_mode="sidecar")
     sidecar = os.path.splitext(res.output_path)[0] + ".lrc"
     assert os.path.exists(sidecar)                       # 外嵌：输出旁生成 .lrc
     assert open(sidecar, encoding="utf-8").read() == "[00:01.00]hi"
@@ -32,10 +33,10 @@ def test_lyrics_mode_sidecar_default(tmp_path):
     assert not uslt                                       # 外嵌不写内嵌标签
 
 
-def test_lyrics_mode_embed_only(tmp_path):
+def test_lyrics_mode_embed_default(tmp_path):
     src = _mk(tmp_path)
     res = convert_file(str(src), str(tmp_path / "out"), "{标题}", "rename",
-                       embed_lyrics=True, lyrics_mode="embed")
+                       embed_lyrics=True)
     sidecar = os.path.splitext(res.output_path)[0] + ".lrc"
     assert not os.path.exists(sidecar)                   # 内嵌：不生成外挂文件
     from mutagen.id3 import ID3

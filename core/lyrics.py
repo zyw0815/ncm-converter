@@ -1,6 +1,11 @@
 # core/lyrics.py
 import os
 import json
+import re
+
+
+_TIMED_LINE = re.compile(r"^((?:\[\d{1,3}:\d{2}(?:\.\d{1,3})?\])+)(.*)$")
+_TIMESTAMP = re.compile(r"\[(\d{1,3}):(\d{2})(?:\.(\d{1,3}))?\]")
 
 
 def find_lrc(src: str):
@@ -53,3 +58,32 @@ def read_lyrics(src: str):
         except OSError:
             return None
     return parse_lrc(raw)
+
+
+def merge_lrc(original: str, translation: str) -> str:
+    """按时间戳合并原文与译文，同一时间戳先写原文。"""
+    headers = []
+    lines = {}
+
+    for source, keep_headers in ((original, True), (translation, False)):
+        for line in parse_lrc(source or "").splitlines():
+            match = _TIMED_LINE.match(line.strip())
+            if not match:
+                if keep_headers:
+                    headers.append(line)
+                continue
+            for stamp in _TIMESTAMP.finditer(match.group(1)):
+                minute, second, fraction = stamp.groups()
+                millis = (int(minute) * 60 + int(second)) * 1000
+                millis += int((fraction or "0").ljust(3, "0"))
+                entry = lines.setdefault(millis, {"stamp": stamp.group(), "original": [], "translation": []})
+                text = match.group(2).strip()
+                if text:
+                    entry["original" if keep_headers else "translation"].append(text)
+
+    merged = list(headers)
+    for millis in sorted(lines):
+        entry = lines[millis]
+        for text in entry["original"] + entry["translation"]:
+            merged.append(entry["stamp"] + text)
+    return "\n".join(merged)

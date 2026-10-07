@@ -1,10 +1,12 @@
 import os
+import threading
 from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
 from core.converter import convert_file
 from core.ncm import parse_ncm
 from core.metadata import extract_tags, read_audio_tags
 from core.transcode import transcode, FfmpegNotFound
 from core.lyrics import find_lrc
+from core.online_lyrics import download_lyrics
 
 
 class WorkerSignals(QObject):
@@ -13,7 +15,7 @@ class WorkerSignals(QObject):
 
 class ConvertWorker(QRunnable):
     def __init__(self, index, src, out_dir, template, conflict,
-                 to_wav=False, delete_src=False, embed_lyrics=False, lyrics_mode="sidecar"):
+                 to_wav=False, delete_src=False, embed_lyrics=False, lyrics_mode="embed"):
         super().__init__()
         self.index = index
         self.src = src
@@ -27,8 +29,10 @@ class ConvertWorker(QRunnable):
         self.signals = WorkerSignals()
 
     def run(self):
+        # WAV cannot store lyric tags. Keep a matching sidecar when converting NCM to WAV.
+        lyrics_mode = "sidecar" if self.to_wav and self.src.lower().endswith(".ncm") else self.lyrics_mode
         res = convert_file(self.src, self.out_dir, self.template, self.conflict,
-                           embed_lyrics=self.embed_lyrics, lyrics_mode=self.lyrics_mode)
+                           embed_lyrics=self.embed_lyrics, lyrics_mode=lyrics_mode)
         try:
             if res.status == "ok" and self.to_wav and not res.special and not res.passthrough:
                 original = res.output_path
@@ -85,3 +89,32 @@ class PreviewWorker(QRunnable):
             self.signals.done.emit(self.index, tags, fmt, content.cover or b"")
         except Exception:
             self.signals.done.emit(self.index, {"title": "", "artists": [], "album": ""}, "?", b"")
+
+
+class LyricsDownloadSignals(QObject):
+    progress = pyqtSignal(int, int, str)
+    finished = pyqtSignal(object, str)  # DownloadSummary or None, error message
+
+
+class LyricsDownloadWorker(QRunnable):
+    def __init__(self, kind, value, out_dir):
+        super().__init__()
+        self.kind = kind
+        self.value = value
+        self.out_dir = out_dir
+        self._cancelled = threading.Event()
+        self.signals = LyricsDownloadSignals()
+
+    def cancel(self):
+        self._cancelled.set()
+
+    def run(self):
+        try:
+            summary = download_lyrics(
+                self.kind, self.value, self.out_dir,
+                progress=self.signals.progress.emit,
+                cancelled=self._cancelled.is_set,
+            )
+            self.signals.finished.emit(summary, "")
+        except Exception as exc:
+            self.signals.finished.emit(None, str(exc))
